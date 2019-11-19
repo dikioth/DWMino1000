@@ -37,7 +37,8 @@ volatile unsigned long delaySent = 0;
 int16_t sentNum = 0; // todo check int type
 DW1000Time sentTime;
 
-void setup() {
+void setup()
+{
   // DEBUG monitoring
   Serial.begin(9600);
   Serial.println(F("### DW1000-arduino-sender-test ###"));
@@ -56,30 +57,38 @@ void setup() {
   // DEBUG chip info and registers pretty printed
   char msg[128];
   DW1000.getPrintableDeviceIdentifier(msg);
-  Serial.print("Device ID: "); Serial.println(msg);
+  Serial.print("Device ID: ");
+  Serial.println(msg);
   DW1000.getPrintableExtendedUniqueIdentifier(msg);
-  Serial.print("Unique ID: "); Serial.println(msg);
+  Serial.print("Unique ID: ");
+  Serial.println(msg);
   DW1000.getPrintableNetworkIdAndShortAddress(msg);
-  Serial.print("Network ID & Device Address: "); Serial.println(msg);
+  Serial.print("Network ID & Device Address: ");
+  Serial.println(msg);
   DW1000.getPrintableDeviceMode(msg);
-  Serial.print("Device mode: "); Serial.println(msg);
+  Serial.print("Device mode: ");
+  Serial.println(msg);
   // attach callback for (successfully) sent messages
   DW1000.attachSentHandler(handleSent);
   // start a transmission
   transmitter();
 }
 
-void handleSent() {
+void handleSent()
+{
   // status change on sent success
   sentAck = true;
 }
 
-void transmitter() {
+void transmitter()
+{
   // transmit some data
-  Serial.print("Transmitting packet ... #"); Serial.println(sentNum);
+  Serial.print("Transmitting packet ... #");
+  Serial.println(sentNum);
   DW1000.newTransmit();
   DW1000.setDefaults();
-  String msg = "Hello DW1000, it's #"; msg += sentNum;
+  String msg = "Hello DW1000, it's #";
+  msg += sentNum;
   DW1000.setData(msg);
   // delay sending the message for the given amount
   DW1000Time deltaTime = DW1000Time(10, DW1000Time::MILLISECONDS);
@@ -88,21 +97,27 @@ void transmitter() {
   delaySent = millis();
 }
 
-void loop() {
-  if (!sentAck) {
+void loop()
+{
+  if (!sentAck)
+  {
     return;
   }
   // continue on success confirmation
   // (we are here after the given amount of send delay time has passed)
   sentAck = false;
   // update and print some information about the sent message
-  Serial.print("ARDUINO delay sent [ms] ... "); Serial.println(millis() - delaySent);
+  Serial.print("ARDUINO delay sent [ms] ... ");
+  Serial.println(millis() - delaySent);
   DW1000Time newSentTime;
   DW1000.getTransmitTimestamp(newSentTime);
-  Serial.print("Processed packet ... #"); Serial.println(sentNum);
-  Serial.print("Sent timestamp ... "); Serial.println(newSentTime.getAsMicroSeconds());
+  Serial.print("Processed packet ... #");
+  Serial.println(sentNum);
+  Serial.print("Sent timestamp ... ");
+  Serial.println(newSentTime.getAsMicroSeconds());
   // note: delta is just for simple demo as not correct on system time counter wrap-around
-  Serial.print("DW1000 delta send time [ms] ... "); Serial.println((newSentTime.getAsMicroSeconds() - sentTime.getAsMicroSeconds()) * 1.0e-3);
+  Serial.print("DW1000 delta send time [ms] ... ");
+  Serial.println((newSentTime.getAsMicroSeconds() - sentTime.getAsMicroSeconds()) * 1.0e-3);
   sentTime = newSentTime;
   sentNum++;
   // again, transmit some data
