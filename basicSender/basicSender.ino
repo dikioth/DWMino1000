@@ -109,8 +109,6 @@ void transmit()
     while (!DW1000Ng::isTransmitDone())
     {
     }
-    //Serial.print("Sent: ");
-    //Serial.println(msg);
     DW1000Ng::clearTransmitStatus();
 }
 

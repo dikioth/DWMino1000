@@ -1,89 +1,81 @@
-
+#include "require_cpp11.h"
 #include <SPI.h>
-#include <DW1000Ng.hpp>
+#include <DW1000.h>
 
-const uint8_t PIN_RST = 9; // reset pin
-const uint8_t PIN_IRQ = 2; // irq pin
-const uint8_t PIN_SS = 7;  // spi select pin
+// connection pins
+constexpr uint8_t PIN_RST = 9; // reset pin
+constexpr uint8_t PIN_IRQ = 2; // irq pin
+constexpr uint8_t PIN_SS = 7;  // spi select pin
 
-// DEBUG packet sent status and count
-volatile unsigned long delaySent = 0;
-volatile boolean sentAck = false;
-volatile boolean receivedAck = false;
-String message;
-
-device_configuration_t DEFAULT_CONFIG = {
-    false,
-    true,
-    true,
-    true,
-    false,
-    SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_5,
-    DataRate::RATE_850KBPS,
-    PulseFrequency::FREQ_16MHZ,
-    PreambleLength::LEN_256,
-    PreambleCode::CODE_3};
+volatile boolean recieved = false;
+volatile boolean sent = false;
+volatile boolean rxError = false;
+String msg;
 
 void setup()
 {
-  // DEBUG monitoring
   Serial.begin(9600);
-  // initialize the driver
-  DW1000Ng::initializeNoInterrupt(PIN_SS);
+  DW1000.begin(PIN_IRQ, PIN_RST);
+  DW1000.select(PIN_SS);
+  DW1000.newConfiguration();
+  DW1000.setDefaults();
+  DW1000.setDeviceAddress(1);
+  DW1000.setNetworkId(10);
+  DW1000.commitConfiguration();
 
-  DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-  //DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
+  DW1000.attachSentHandler(handleSent);
+  DW1000.attachReceivedHandler(handleReceived);
+  DW1000.attachReceiveFailedHandler(handleReceiveFailed);
+  receiver();
+}
 
-  DW1000Ng::setDeviceAddress(5);
-  DW1000Ng::setNetworkId(10);
-
-  DW1000Ng::setAntennaDelay(16436);
-  // attach callback for (successfully) sent messages
-  DW1000Ng::attachSentHandler(handleSent);
-  DW1000Ng::attachReceivedHandler(handleReceived);
-  // start a transmission
+void handleSent()
+{
+  sent = true;
 }
 
 void handleReceived()
 {
-  receivedAck = true;
+  recieved = true;
 }
-void handleSent()
+
+void handleReceiveFailed()
 {
-  sentAck = true;
+  rxError = true;
 }
 
 void transmit()
 {
-  // transmit some data
-  String msg = Serial.readString();
-  DW1000Ng::setTransmitData("transmissionTest");
-  // delay sending the message for the given amount
-  DW1000Ng::startTransmit(TransmitMode::IMMEDIATE);
-  while (!DW1000Ng::isTransmitDone())
-  {
-  }
-  DW1000Ng::clearTransmitStatus();
+  msg = Serial.readString();
+  DW1000.newTransmit();
+  DW1000.setDefaults();
+  DW1000.setData(msg);
+  DW1000.startTransmit();
+  //Serial.print(F("Transmitted: "));
+  //Serial.println(msg);
 }
 
-void receive()
+void receiver()
 {
-  DW1000Ng::startReceive();
-  while (!DW1000Ng::isReceiveDone())
-  {
-  }
-  DW1000Ng::clearReceiveStatus();
-  // get data as string
-  DW1000Ng::getReceivedData(message);
-  Serial.println(message);
+  String rxMsg;
+  DW1000.newReceive();
+  DW1000.setDefaults();
+  DW1000.receivePermanently(true);
+  DW1000.startReceive();
+  DW1000.getData(rxMsg);
+  //Serial.print(F("Received: "));
+  Serial.println(rxMsg);
 }
 
 void loop()
 {
-  while (Serial.available() <= 0)
+  if (Serial.available() > 0)
   {
-    receive();
+    transmit();
   }
-  transmit();
+  else if (recieved)
+  {
+    receiver();
+    recieved = false;
+  }
 }

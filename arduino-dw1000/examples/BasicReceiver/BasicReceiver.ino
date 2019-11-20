@@ -29,7 +29,7 @@
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
 const uint8_t PIN_IRQ = 2; // irq pin
-const uint8_t PIN_SS = SS; // spi select pin
+const uint8_t PIN_SS = 7;  // spi select pin
 
 // DEBUG packet sent status and count
 volatile boolean received = false;
@@ -37,7 +37,8 @@ volatile boolean error = false;
 volatile int16_t numReceived = 0; // todo check int type
 String message;
 
-void setup() {
+void setup()
+{
   // DEBUG monitoring
   Serial.begin(9600);
   Serial.println(F("### DW1000-arduino-receiver-test ###"));
@@ -56,13 +57,17 @@ void setup() {
   // DEBUG chip info and registers pretty printed
   char msg[128];
   DW1000.getPrintableDeviceIdentifier(msg);
-  Serial.print("Device ID: "); Serial.println(msg);
+  Serial.print("Device ID: ");
+  Serial.println(msg);
   DW1000.getPrintableExtendedUniqueIdentifier(msg);
-  Serial.print("Unique ID: "); Serial.println(msg);
+  Serial.print("Unique ID: ");
+  Serial.println(msg);
   DW1000.getPrintableNetworkIdAndShortAddress(msg);
-  Serial.print("Network ID & Device Address: "); Serial.println(msg);
+  Serial.print("Network ID & Device Address: ");
+  Serial.println(msg);
   DW1000.getPrintableDeviceMode(msg);
-  Serial.print("Device mode: "); Serial.println(msg);
+  Serial.print("Device mode: ");
+  Serial.println(msg);
   // attach callback for (successfully) received messages
   DW1000.attachReceivedHandler(handleReceived);
   DW1000.attachReceiveFailedHandler(handleError);
@@ -71,16 +76,19 @@ void setup() {
   receiver();
 }
 
-void handleReceived() {
+void handleReceived()
+{
   // status change on reception success
   received = true;
 }
 
-void handleError() {
+void handleError()
+{
   error = true;
 }
 
-void receiver() {
+void receiver()
+{
   DW1000.newReceive();
   DW1000.setDefaults();
   // so we don't need to restart the receiver manually
@@ -88,23 +96,32 @@ void receiver() {
   DW1000.startReceive();
 }
 
-void loop() {
+void loop()
+{
   // enter on confirmation of ISR status change (successfully received)
-  if (received) {
+  if (received)
+  {
     numReceived++;
     // get data as string
     DW1000.getData(message);
-    Serial.print("Received message ... #"); Serial.println(numReceived);
-    Serial.print("Data is ... "); Serial.println(message);
-    Serial.print("FP power is [dBm] ... "); Serial.println(DW1000.getFirstPathPower());
-    Serial.print("RX power is [dBm] ... "); Serial.println(DW1000.getReceivePower());
-    Serial.print("Signal quality is ... "); Serial.println(DW1000.getReceiveQuality());
+    Serial.print("Received message ... #");
+    Serial.println(numReceived);
+    Serial.print("Data is ... ");
+    Serial.println(message);
+    Serial.print("FP power is [dBm] ... ");
+    Serial.println(DW1000.getFirstPathPower());
+    Serial.print("RX power is [dBm] ... ");
+    Serial.println(DW1000.getReceivePower());
+    Serial.print("Signal quality is ... ");
+    Serial.println(DW1000.getReceiveQuality());
     received = false;
   }
-  if (error) {
+  if (error)
+  {
     Serial.println("Error receiving a message");
     error = false;
     DW1000.getData(message);
-    Serial.print("Error data is ... "); Serial.println(message);
+    Serial.print("Error data is ... ");
+    Serial.println(message);
   }
 }
