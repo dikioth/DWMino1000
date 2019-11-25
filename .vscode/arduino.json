@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "messenger\\messenger.ino",
+    "port": "COM6"
+}

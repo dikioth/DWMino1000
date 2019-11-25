@@ -60,7 +60,8 @@ uint32_t resetPeriod = 250;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
-void setup() {
+void setup()
+{
     // DEBUG monitoring
     Serial.begin(115200);
     Serial.println(F("### DW1000-arduino-ranging-tag ###"));
@@ -79,13 +80,17 @@ void setup() {
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000.getPrintableDeviceIdentifier(msg);
-    Serial.print("Device ID: "); Serial.println(msg);
+    Serial.print("Device ID: ");
+    Serial.println(msg);
     DW1000.getPrintableExtendedUniqueIdentifier(msg);
-    Serial.print("Unique ID: "); Serial.println(msg);
+    Serial.print("Unique ID: ");
+    Serial.println(msg);
     DW1000.getPrintableNetworkIdAndShortAddress(msg);
-    Serial.print("Network ID & Device Address: "); Serial.println(msg);
+    Serial.print("Network ID & Device Address: ");
+    Serial.println(msg);
     DW1000.getPrintableDeviceMode(msg);
-    Serial.print("Device mode: "); Serial.println(msg);
+    Serial.print("Device mode: ");
+    Serial.println(msg);
     // attach callback for (successfully) sent and received messages
     DW1000.attachSentHandler(handleSent);
     DW1000.attachReceivedHandler(handleReceived);
@@ -95,29 +100,34 @@ void setup() {
     noteActivity();
 }
 
-void noteActivity() {
+void noteActivity()
+{
     // update activity timestamp, so that we do not reach "resetPeriod"
     lastActivity = millis();
 }
 
-void resetInactive() {
+void resetInactive()
+{
     // tag sends POLL and listens for POLL_ACK
     expectedMsgId = POLL_ACK;
     transmitPoll();
     noteActivity();
 }
 
-void handleSent() {
+void handleSent()
+{
     // status change on sent success
     sentAck = true;
 }
 
-void handleReceived() {
+void handleReceived()
+{
     // status change on received success
     receivedAck = true;
 }
 
-void transmitPoll() {
+void transmitPoll()
+{
     DW1000.newTransmit();
     DW1000.setDefaults();
     data[0] = POLL;
@@ -125,7 +135,8 @@ void transmitPoll() {
     DW1000.startTransmit();
 }
 
-void transmitRange() {
+void transmitRange()
+{
     DW1000.newTransmit();
     DW1000.setDefaults();
     data[0] = RANGE;
@@ -140,7 +151,8 @@ void transmitRange() {
     //Serial.print("Expect RANGE to be sent @ "); Serial.println(timeRangeSent.getAsFloat());
 }
 
-void receiver() {
+void receiver()
+{
     DW1000.newReceive();
     DW1000.setDefaults();
     // so we don't need to restart the receiver manually
@@ -148,54 +160,67 @@ void receiver() {
     DW1000.startReceive();
 }
 
-void loop() {
-    if (!sentAck && !receivedAck) {
+void loop()
+{
+    if (!sentAck && !receivedAck)
+    {
         // check if inactive
-        if (millis() - lastActivity > resetPeriod) {
+        if (millis() - lastActivity > resetPeriod)
+        {
             resetInactive();
         }
         return;
     }
     // continue on any success confirmation
-    if (sentAck) {
+    if (sentAck)
+    {
         sentAck = false;
         byte msgId = data[0];
-        if (msgId == POLL) {
+        if (msgId == POLL)
+        {
             DW1000.getTransmitTimestamp(timePollSent);
             //Serial.print("Sent POLL @ "); Serial.println(timePollSent.getAsFloat());
-        } else if (msgId == RANGE) {
+        }
+        else if (msgId == RANGE)
+        {
             DW1000.getTransmitTimestamp(timeRangeSent);
             noteActivity();
         }
     }
-    if (receivedAck) {
+    if (receivedAck)
+    {
         receivedAck = false;
         // get message and parse
         DW1000.getData(data, LEN_DATA);
         byte msgId = data[0];
-        if (msgId != expectedMsgId) {
+        if (msgId != expectedMsgId)
+        {
             // unexpected message, start over again
             //Serial.print("Received wrong message # "); Serial.println(msgId);
             expectedMsgId = POLL_ACK;
             transmitPoll();
             return;
         }
-        if (msgId == POLL_ACK) {
+        if (msgId == POLL_ACK)
+        {
             DW1000.getReceiveTimestamp(timePollAckReceived);
             expectedMsgId = RANGE_REPORT;
             transmitRange();
             noteActivity();
-        } else if (msgId == RANGE_REPORT) {
+        }
+        else if (msgId == RANGE_REPORT)
+        {
             expectedMsgId = POLL_ACK;
             float curRange;
             memcpy(&curRange, data + 1, 4);
             transmitPoll();
             noteActivity();
-        } else if (msgId == RANGE_FAILED) {
+        }
+        else if (msgId == RANGE_FAILED)
+        {
             expectedMsgId = POLL_ACK;
             transmitPoll();
             noteActivity();
         }
     }
 }
-

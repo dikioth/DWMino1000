@@ -269,6 +269,7 @@ void DW1000Class::enableLedBlinking()
 
 void DW1000Class::setGPIOMode(uint8_t msgp, uint8_t mode)
 {
+	// MSGP0: msgp = 0, MSGP1: msgp  = 1,
 	byte gpiomode[LEN_GPIO_MODE];
 	memset(gpiomode, 0, LEN_GPIO_MODE);
 	readBytes(GPIO_CTRL, GPIO_MODE_SUB, gpiomode, LEN_GPIO_MODE);

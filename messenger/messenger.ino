@@ -26,6 +26,9 @@ void setup()
   DW1000.attachSentHandler(handleSent);
   DW1000.attachReceivedHandler(handleReceived);
   DW1000.attachReceiveFailedHandler(handleReceiveFailed);
+  // DW1000.setGPIOMode(2, 1);
+  // DW1000.setGPIOMode(3, 1);
+  // DW1000.enableLedBlinking();
   receiver();
 }
 
@@ -64,12 +67,15 @@ void receiver()
   DW1000.startReceive();
   DW1000.getData(rxMsg);
   //Serial.print(F("Received: "));
-  Serial.println(rxMsg);
+  if (rxMsg != NULL && rxMsg != "" && rxMsg != "n/a")
+  {
+    Serial.println(rxMsg);
+  }
 }
 
 void loop()
 {
-  if (Serial.available() > 0)
+  if (Serial.available() > 1)
   {
     transmit();
   }

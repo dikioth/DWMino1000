@@ -37,7 +37,8 @@ constexpr uint8_t PIN_IRQ = 2; // irq pin
 constexpr uint8_t PIN_SS = SS; // spi select pin
 
 // toggle state
-enum class TransmissionState : uint8_t {
+enum class TransmissionState : uint8_t
+{
   SENDER,
   RECEIVER
 };
@@ -49,7 +50,8 @@ volatile boolean trxAck = false;
 volatile boolean rxError = false;
 String msg;
 
-void setup() {
+void setup()
+{
   // DEBUG monitoring
   Serial.begin(9600);
   Serial.println(F("### DW1000-arduino-ping-pong-test ###"));
@@ -67,51 +69,63 @@ void setup() {
   // DEBUG chip info and registers pretty printed
   char msgInfo[128];
   DW1000.getPrintableDeviceIdentifier(msgInfo);
-  Serial.print(F("Device ID: ")); Serial.println(msgInfo);
+  Serial.print(F("Device ID: "));
+  Serial.println(msgInfo);
   DW1000.getPrintableExtendedUniqueIdentifier(msgInfo);
-  Serial.print(F("Unique ID: ")); Serial.println(msgInfo);
+  Serial.print(F("Unique ID: "));
+  Serial.println(msgInfo);
   DW1000.getPrintableNetworkIdAndShortAddress(msgInfo);
-  Serial.print(F("Network ID & Device Address: ")); Serial.println(msgInfo);
+  Serial.print(F("Network ID & Device Address: "));
+  Serial.println(msgInfo);
   DW1000.getPrintableDeviceMode(msgInfo);
-  Serial.print(F("Device mode: ")); Serial.println(msgInfo);
+  Serial.print(F("Device mode: "));
+  Serial.println(msgInfo);
   // attach callback for (successfully) sent and received messages
   DW1000.attachSentHandler(handleSent);
   DW1000.attachReceivedHandler(handleReceived);
   DW1000.attachReceiveFailedHandler(handleReceiveFailed);
   // sender starts by sending a PING message, receiver starts listening
-  if (trxToggle == TransmissionState::SENDER) {
+  if (trxToggle == TransmissionState::SENDER)
+  {
     msg = "Ping ...";
     receiver();
     transmit();
-  } else {
+  }
+  else
+  {
     msg = "... and Pong";
     receiver();
   }
 }
 
-void handleSent() {
+void handleSent()
+{
   // status change on sent success
   trxAck = true;
 }
 
-void handleReceived() {
+void handleReceived()
+{
   // status change on received success
   trxAck = true;
 }
 
-void handleReceiveFailed() {
+void handleReceiveFailed()
+{
   // error flag
   rxError = true;
 }
 
-void transmit() {
+void transmit()
+{
   DW1000.newTransmit();
   DW1000.setDefaults();
   DW1000.setData(msg);
   DW1000.startTransmit();
 }
 
-void receiver() {
+void receiver()
+{
   DW1000.newReceive();
   DW1000.setDefaults();
   // so we don't need to restart the receiver manually
@@ -119,26 +133,34 @@ void receiver() {
   DW1000.startReceive();
 }
 
-void loop() {
-  if (rxError) {
+void loop()
+{
+  if (rxError)
+  {
     Serial.println(F("Failed to properly receive message."));
     rxError = false;
     return;
   }
-  if (!trxAck) {
+  if (!trxAck)
+  {
     return;
   }
   // continue on any success confirmation
   trxAck = false;
   // a sender will be a receiver and vice versa
   trxToggle = (trxToggle == TransmissionState::SENDER) ? TransmissionState::RECEIVER : TransmissionState::SENDER;
-  if (trxToggle == TransmissionState::SENDER) {
+  if (trxToggle == TransmissionState::SENDER)
+  {
     // formerly a receiver
     String rxMsg;
     DW1000.getData(rxMsg);
-    Serial.print(F("Received: ")); Serial.println(rxMsg);
+    Serial.print(F("Received: "));
+    Serial.println(rxMsg);
     transmit();
-  } else {
-    Serial.print(F("Transmitted: ")); Serial.println(msg);
+  }
+  else
+  {
+    Serial.print(F("Transmitted: "));
+    Serial.println(msg);
   }
 }

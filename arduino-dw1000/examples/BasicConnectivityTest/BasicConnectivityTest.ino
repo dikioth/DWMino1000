@@ -31,7 +31,8 @@ const uint8_t PIN_RST = 9; // reset pin
 const uint8_t PIN_IRQ = 2; // irq pin
 const uint8_t PIN_SS = SS; // spi select pin
 
-void setup() {
+void setup()
+{
   // DEBUG monitoring
   Serial.begin(9600);
   // initialize the driver
@@ -48,17 +49,22 @@ void setup() {
   delay(1000);
 }
 
-void loop() {
+void loop()
+{
   // DEBUG chip info and registers pretty printed
   char msg[128];
   DW1000.getPrintableDeviceIdentifier(msg);
-  Serial.print("Device ID: "); Serial.println(msg);
+  Serial.print("Device ID: ");
+  Serial.println(msg);
   DW1000.getPrintableExtendedUniqueIdentifier(msg);
-  Serial.print("Unique ID: "); Serial.println(msg);
+  Serial.print("Unique ID: ");
+  Serial.println(msg);
   DW1000.getPrintableNetworkIdAndShortAddress(msg);
-  Serial.print("Network ID & Device Address: "); Serial.println(msg);
+  Serial.print("Network ID & Device Address: ");
+  Serial.println(msg);
   DW1000.getPrintableDeviceMode(msg);
-  Serial.print("Device mode: "); Serial.println(msg);
+  Serial.print("Device mode: ");
+  Serial.println(msg);
   // wait a bit
   delay(10000);
 }
