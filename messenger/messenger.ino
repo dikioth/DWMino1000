@@ -1,6 +1,7 @@
 #include "require_cpp11.h"
 #include <SPI.h>
 #include <DW1000.h>
+#include "../decadriver/deca_device_api.h"
 
 // connection pins
 constexpr uint8_t PIN_RST = 9; // reset pin
