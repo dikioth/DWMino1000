@@ -59,6 +59,7 @@ void receiver()
     DW1000.setDefaults();
     DW1000.receivePermanently(true);
     DW1000.startReceive();
+    uwbReceiverParser();
 }
 /*****************************************************/
 
@@ -77,7 +78,7 @@ void loop()
     if (received)
     {
         Serial.println("loop 2");
-        uwbReceiverParser();
+        receiver();
     }
 
     /* Check for errors */
