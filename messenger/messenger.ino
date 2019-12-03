@@ -4,7 +4,7 @@
 
 // connection pins
 constexpr uint8_t PIN_RST = 9; // reset pin
-constexpr uint8_t PIN_IRQ = 2; // irq pin
+constexpr uint8_t PIN_IRQ = 4; // irq pin
 constexpr uint8_t PIN_SS = 7;  // spi select pin
 
 volatile boolean received = false;
@@ -64,8 +64,8 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
-        // serialReceiver();
-        uwbTransmitter();
+        serialReceiver();
+        // uwbTransmitter();
         // isPrinting = false;
     }
 
@@ -199,24 +199,24 @@ void uwbTransmitter()
     DW1000.newTransmit();
     DW1000.setDefaults();
     // DW1000.setData(textByteArray, numReceived);
-    String test = "testmsg>";
-    DW1000.setData(test);
-    // switch (flagByte)
-    // {
-    // case 0x69:
-    //     DW1000.setData(imageByteArray, imageNumReceived);
-    //     break;
+    // String test = "testmsg>";
+    // DW1000.setData(test);
+    switch (flagByte)
+    {
+    case 0x69:
+        DW1000.setData(imageByteArray, imageNumReceived);
+        break;
 
-    // case 0x74:
-    //     DW1000.setData(textByteArray, numReceived);
-    //     break;
-    // default:
-    //     break;
-    // }
+    case 0x74:
+        DW1000.setData(textByteArray, numReceived);
+        break;
+    default:
+        break;
+    }
     // String msg = "Dummy message";
     // DW1000.setData(msg);
     DW1000.startTransmit();
-    Serial.println("Transmit started");
+    // Serial.println("Transmit started");
 }
 
 // void serialTransmitter(byte data[], int size)
