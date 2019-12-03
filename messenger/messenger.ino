@@ -88,17 +88,17 @@ void loop()
 
 void uwbReceiverParser()
 {
-    Serial.println("uwbReceiverParser");
+    // Serial.println("uwbReceiverParser");
     int length = DW1000.getDataLength();
     byte tmpArray[length];
     Serial.print("Receiving uwb msg of length: ");
     Serial.println(length);
     String msg;
     DW1000.getData(msg);
-    Serial.println(msg);
+    // Serial.println(msg);
     // DW1000.getData(tmpArray, length);
-    serialTransmitter(tmpArray);
-    // showNewData();
+    // serialTransmitter(tmpArray);
+    showNewData();
     received = false;
 }
 /*****************************************************/
@@ -199,20 +199,20 @@ void uwbTransmitter()
     DW1000.newTransmit();
     DW1000.setDefaults();
     // DW1000.setData(textByteArray, numReceived);
-    // String test = "testmsg>";
-    // DW1000.setData(test);
-    switch (flagByte)
-    {
-    case 0x69:
-        DW1000.setData(imageByteArray, imageNumReceived);
-        break;
+    String test = "ttestmsg>";
+    DW1000.setData(test);
+    // switch (flagByte)
+    // {
+    // case 0x69:
+    //     DW1000.setData(imageByteArray, imageNumReceived);
+    //     break;
 
-    case 0x74:
-        DW1000.setData(textByteArray, numReceived);
-        break;
-    default:
-        break;
-    }
+    // case 0x74:
+    //     DW1000.setData(textByteArray, numReceived);
+    //     break;
+    // default:
+    //     break;
+    // }
     // String msg = "Dummy message";
     // DW1000.setData(msg);
     DW1000.startTransmit();
@@ -288,6 +288,7 @@ void showNewData()
 
 void serialTransmitter(byte arr[])
 {
+
     int n = 0;
     while (arr[n] != 0x3E)
     {
