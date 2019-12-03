@@ -68,9 +68,9 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
-        Serial.print("loop 1");
-        serialReceiver();
-        // uwbTransmitter();
+        Serial.println("loop 1");
+        // serialReceiver();
+        uwbTransmitter();
         // isPrinting = false;
     }
 
@@ -192,7 +192,7 @@ void serialReceiver()
         }
     }
 
-    uwbTransmitter();
+    // uwbTransmitter();
     // showNewData();
 }
 /*****************************************************/
@@ -200,6 +200,7 @@ void serialReceiver()
 /** Function for transmitting information with the DW1000 **/
 void uwbTransmitter()
 {
+    serialReceiver();
     Serial.print("uwbTransmitter, sent is: ");
     Serial.println(sent);
     DW1000.newTransmit();
