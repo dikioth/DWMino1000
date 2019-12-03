@@ -1,4 +1,3 @@
-#include "require_cpp11.h"
 #include <SPI.h>
 #include <DW1000.h>
 
@@ -6,6 +5,8 @@
 constexpr uint8_t PIN_RST = 9; // reset pin
 constexpr uint8_t PIN_IRQ = 4; // irq pin
 constexpr uint8_t PIN_SS = 7;  // spi select pin
+constexpr uint8_t PIN_LED_1 = 3;
+constexpr uint8_t PIN_LED_2 = 2;
 
 volatile boolean received = false;
 volatile boolean sent = false;
@@ -19,6 +20,8 @@ boolean isFlagSet = false;
 void setup()
 {
     Serial.begin(9600);
+    pinMode(PIN_LED_1, OUTPUT);
+    pinMode(PIN_LED_2, OUTPUT);
     DW1000.begin(PIN_IRQ, PIN_RST);
     DW1000.select(PIN_SS);
     DW1000.newConfiguration();
@@ -55,6 +58,7 @@ void handleReceiveFailed()
 /*** Setup DW1000 permanent receive ***/
 void receiver()
 {
+    digitalWrite(PIN_LED_2, LOW);
     DW1000.newReceive();
     DW1000.setDefaults();
     DW1000.receivePermanently(true);
@@ -63,15 +67,14 @@ void receiver()
 }
 /*****************************************************/
 
-const int tmpSize = 32 * 2048;
+const int tmpSize = 32 * 1024;
 byte tmpArray[tmpSize];
 /*** Parse incoming information from the UWB (SPI) ***/
 
 void uwbReceiverParser()
 {
-    Serial.println("uwbReceiverParser");
-    
-    
+    digitalWrite(PIN_LED_2, HIGH);
+
     String msg;
     DW1000.getData(msg);
     // Serial.println(msg);
@@ -89,7 +92,7 @@ const byte textBytes = 32;
 byte textByteArray[textBytes];
 byte numReceived = 0;
 
-const int imageBytes = 32 * 2048;
+const int imageBytes = 32 * 1024;
 byte imageByteArray[imageBytes];
 int imageNumReceived = 0;
 
@@ -98,7 +101,8 @@ byte flagByte;
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
-    Serial.println("Serial receiverr");
+    delay(200);
+    digitalWrite(PIN_LED_1, HIGH);
     static byte ndx = 0;
     static int imageNdx = 0;
     static boolean recvInProgress = false;
@@ -157,7 +161,7 @@ void serialReceiver()
                     textByteArray[ndx] = recByte; // append end marker to last index
                     ndx = 0;
                     newData = true;
-                    serialTransmitter(textByteArray);
+                    // serialTransmitter(textByteArray);
                 }
             }
         }
@@ -166,6 +170,8 @@ void serialReceiver()
             recvInProgress = true;
         }
     }
+    digitalWrite(PIN_LED_1, LOW);
+    Serial.println("Serial receiver finished");
 
     // uwbTransmitter();
     // showNewData();
@@ -175,9 +181,9 @@ void serialReceiver()
 /** Function for transmitting information with the DW1000 **/
 void uwbTransmitter()
 {
+    delay(200);
+    digitalWrite(PIN_LED_1, LOW);
     serialReceiver();
-    Serial.print("uwbTransmitter, sent is: ");
-    Serial.println(sent);
     DW1000.newTransmit();
     DW1000.setDefaults();
     // DW1000.setData(textByteArray, numReceived);
@@ -302,7 +308,7 @@ void clearBuffer()
     }
 }
 
-void receiveMessage(byte flagByte)
+/* void receiveMessage(byte flagByte)
 {
     const int messageArrayBytes = 256;
     byte receivedMessageArray[messageArrayBytes];
@@ -393,7 +399,7 @@ void receiveImage(byte flagByte)
     {
         // uwbTransmitter(receivedImageArray, numReceived);
     }
-}
+} */
 
 /*** LOOP ***/
 void loop()
@@ -401,23 +407,23 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
-        Serial.println("loop 1");
+        digitalWrite(PIN_LED_1, HIGH);
         // serialReceiver();
         uwbTransmitter();
         // isPrinting = false;
     }
 
     /* Route if information is received on the SPI (DW1000) */
-    if (received)
+    else if (received)
     {
-        Serial.println("loop 2");
+        digitalWrite(PIN_LED_2, HIGH);
         receiver();
         received = false;
         clearBuffer();
     }
 
     /* Check for errors */
-    if (rxError)
+    else if (rxError)
     {
         Serial.println("Something went wrong");
     }
