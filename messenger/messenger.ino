@@ -67,6 +67,7 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
+        Serial.print("loop 1");
         serialReceiver();
         // uwbTransmitter();
         // isPrinting = false;
@@ -75,6 +76,7 @@ void loop()
     /* Route if information is received on the SPI (DW1000) */
     if (received)
     {
+        Serial.println("loop 2");
         uwbReceiverParser();
     }
 
@@ -85,17 +87,15 @@ void loop()
     }
 }
 
-// const int tmpSize = 32 * 2048;
-// byte tmpArray[tmpSize];
+const int tmpSize = 32 * 2048;
+byte tmpArray[tmpSize];
 /*** Parse incoming information from the UWB (SPI) ***/
 
 void uwbReceiverParser()
 {
-    // Serial.println("uwbReceiverParser");
-    int length = DW1000.getDataLength();
-    byte tmpArray[length];
-    Serial.print("Receiving uwb msg of length: ");
-    Serial.println(length);
+    Serial.println("uwbReceiverParser");
+    
+    
     String msg;
     DW1000.getData(msg);
     // Serial.println(msg);
@@ -199,6 +199,7 @@ void serialReceiver()
 /** Function for transmitting information with the DW1000 **/
 void uwbTransmitter()
 {
+    Serial.print("uwbTransmitter, sent is: ");
     Serial.println(sent);
     DW1000.newTransmit();
     DW1000.setDefaults();
@@ -319,6 +320,7 @@ void serialTransmitter(byte arr[])
 
 void clearBuffer()
 {
+    Serial.println("clearing buffer");
     while (Serial.available() > 0)
     {
         Serial.read();
