@@ -37,14 +37,17 @@ void setup()
 /*** Handlers for DW1000 receive / transmit status ***/
 void handleSent()
 {
+    Serial.println("handled sent");
     sent = true;
 }
 void handleReceived()
 {
+    Serial.println("handled received");
     received = true;
 }
 void handleReceiveFailed()
 {
+    Serial.println("handled error");
     rxError = true;
 }
 /*****************************************************/
@@ -196,6 +199,7 @@ void serialReceiver()
 /** Function for transmitting information with the DW1000 **/
 void uwbTransmitter()
 {
+    Serial.println(sent);
     DW1000.newTransmit();
     DW1000.setDefaults();
     // DW1000.setData(textByteArray, numReceived);
