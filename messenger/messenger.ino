@@ -63,31 +63,6 @@ void receiver()
 }
 /*****************************************************/
 
-void loop()
-{
-    /* Route if information is received on the Serial (USB) */
-    if (Serial.available() > 0)
-    {
-        Serial.println("loop 1");
-        // serialReceiver();
-        uwbTransmitter();
-        // isPrinting = false;
-    }
-
-    /* Route if information is received on the SPI (DW1000) */
-    if (received)
-    {
-        Serial.println("loop 2");
-        receiver();
-    }
-
-    /* Check for errors */
-    if (rxError)
-    {
-        Serial.println("Something went wrong");
-    }
-}
-
 const int tmpSize = 32 * 2048;
 byte tmpArray[tmpSize];
 /*** Parse incoming information from the UWB (SPI) ***/
@@ -102,8 +77,8 @@ void uwbReceiverParser()
     // Serial.println(msg);
     // DW1000.getData(tmpArray, length);
     // serialTransmitter(tmpArray);
-    showNewData();
-    received = false;
+    // showNewData();
+    Serial.println(msg);
 }
 /*****************************************************/
 
@@ -290,7 +265,6 @@ void showNewData()
         imageNumReceived = 0;
         isFlagSet = false;
     }
-    clearBuffer();
 }
 
 void serialTransmitter(byte arr[])
@@ -317,7 +291,6 @@ void serialTransmitter(byte arr[])
     imageNumReceived = 0;
     isFlagSet = false;
 
-    clearBuffer();
 }
 
 void clearBuffer()
@@ -419,5 +392,33 @@ void receiveImage(byte flagByte)
     if (recvInProgress == false && newData == true)
     {
         // uwbTransmitter(receivedImageArray, numReceived);
+    }
+}
+
+/*** LOOP ***/
+void loop()
+{
+    /* Route if information is received on the Serial (USB) */
+    if (Serial.available() > 0)
+    {
+        Serial.println("loop 1");
+        // serialReceiver();
+        uwbTransmitter();
+        // isPrinting = false;
+    }
+
+    /* Route if information is received on the SPI (DW1000) */
+    if (received)
+    {
+        Serial.println("loop 2");
+        receiver();
+        received = false;
+        clearBuffer();
+    }
+
+    /* Check for errors */
+    if (rxError)
+    {
+        Serial.println("Something went wrong");
     }
 }
