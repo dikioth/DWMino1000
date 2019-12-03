@@ -64,7 +64,8 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
-        serialReceiver();
+        // serialReceiver();
+        uwbTransmitter();
         // isPrinting = false;
     }
 
@@ -87,15 +88,18 @@ void loop()
 
 void uwbReceiverParser()
 {
+    Serial.println("uwbReceiverParser");
     int length = DW1000.getDataLength();
     byte tmpArray[length];
     Serial.print("Receiving uwb msg of length: ");
     Serial.println(length);
-
-    DW1000.getData(tmpArray, length);
-    received = false;
+    String msg;
+    DW1000.getData(msg);
+    Serial.println(msg);
+    // DW1000.getData(tmpArray, length);
     serialTransmitter(tmpArray);
-    showNewData();
+    // showNewData();
+    received = false;
 }
 /*****************************************************/
 
@@ -115,6 +119,7 @@ byte flagByte;
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
+    Serial.println("Serial receiverr");
     static byte ndx = 0;
     static int imageNdx = 0;
     static boolean recvInProgress = false;
@@ -173,6 +178,7 @@ void serialReceiver()
                     textByteArray[ndx] = recByte; // append end marker to last index
                     ndx = 0;
                     newData = true;
+                    serialTransmitter(textByteArray);
                 }
             }
         }
@@ -192,7 +198,9 @@ void uwbTransmitter()
 {
     DW1000.newTransmit();
     DW1000.setDefaults();
-    DW1000.setData(textByteArray, numReceived);
+    // DW1000.setData(textByteArray, numReceived);
+    String test = "testmsg>";
+    DW1000.setData(test);
     // switch (flagByte)
     // {
     // case 0x69:
@@ -208,6 +216,7 @@ void uwbTransmitter()
     // String msg = "Dummy message";
     // DW1000.setData(msg);
     DW1000.startTransmit();
+    Serial.println("Transmit started");
 }
 
 // void serialTransmitter(byte data[], int size)
@@ -292,7 +301,7 @@ void serialTransmitter(byte arr[])
         }
         n++;
     }
-    Serial.print("end marker: ");
+    Serial.print("\nend marker: ");
     Serial.println(arr[n]);
     Serial.println();
     newData = false;

@@ -28,7 +28,7 @@
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
 const uint8_t PIN_IRQ = 2; // irq pin
-const uint8_t PIN_SS = SS; // spi select pin
+const uint8_t PIN_SS = 7; // spi select pin
 
 // DEBUG packet sent status and count
 boolean sent = false;
@@ -83,6 +83,7 @@ void handleSent()
 void transmitter()
 {
   // transmit some data
+  delay(1000);
   Serial.print("Transmitting packet ... #");
   Serial.println(sentNum);
   DW1000.newTransmit();
