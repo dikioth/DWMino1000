@@ -13,65 +13,88 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   Serial.println("done setup");
-}
 
+  while (!Serial) {
+    // Wait for Serial port to connect
+  }
+
+  // Clear buffer
+  clearBuffer();
+}
 int bufferBytesRead;
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (Serial.available() > 0) {
+  serialReceiver();
+}
 
-    int index = 0;
-    while (Serial.available() > 0 && !myFlag) {
-      if (inProgress) {
-        bufferBytesRead = Serial.readBytes(bufferArray, len);
+byte flagByte;
+boolean isFlagSet = false;
 
+void serialReceiver() {
+  byte tmpArr[len - 1];
+  byte recByte;
+  int index = 0;
+  while (Serial.available() > 0 && !myFlag) {
+
+    //if ( Serial.available()) {
+
+    recByte = Serial.read();
+
+    if (!isFlagSet)
+    {
+      flagByte = recByte;
+      bufferArray[index] = flagByte;
+      index++;
+      isFlagSet = true;
+      delayMicroseconds(500);
+    }
+    //bufferBytesRead = Serial.readBytes(tmpArr, len-1);
+    else {
+      //myFlag = true;
+      //newData = true;
+      if (recByte == 0x3E) {
+        Serial.println("Endbyte");
+        bufferArray[index] = recByte;
+        inProgress = false;
         myFlag = true;
         newData = true;
-        inProgress = false;
-        //        if (rb == 0x3E) {
-        //          arr[index] = rb;
-        //          inProgress = false;
-        //          myFlag = true;
-        //          newData = true;
-        //          delay(1);
-        //        }
-        //        else {
-        //          arr[index] = rb;
-        //          index++;
-        //          delay(1);
-        //        }
+        isFlagSet = false;
+        delayMicroseconds(500);
       }
       else {
-        inProgress = true;
+        bufferArray[index] = recByte;
+        index++;
+        delayMicroseconds(500);
       }
     }
   }
-
   if (!isPrinting && newData) {
-  printArray();
+    printArray();
   }
 }
 
 void printArray() {
   isPrinting = true;
-  //for (int n = 0; n < len; n++) {
   int n = 0;
   while (bufferArray[n] != 0x3E) {
     Serial.print(n);
     Serial.print(": ");
-    Serial.println(bufferArray[n], BIN);
+    Serial.println(bufferArray[n]);
     n++;
-  } 
-  //}
-
-  Serial.print("Bytes read: ");
-  Serial.println(bufferBytesRead);
+  }
+  Serial.print(len - 1);
+  Serial.print(": ");
+  Serial.println(bufferArray[len - 1]);
   myFlag = false;
   isPrinting = false;
   newData = false;
 
   // Clear buffer
+  clearBuffer();
+}
+
+void clearBuffer() {
   while (Serial.available() > 0) {
     Serial.read();
   }
