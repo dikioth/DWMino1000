@@ -17,6 +17,23 @@ boolean isFlagByteSet = false;
 boolean isPrinting = false;
 boolean isFlagSet = false;
 
+
+const byte textBytes = 127;
+byte textByteArray[textBytes];
+byte numReceived = 0;
+
+const int imageBytes = 32 * 1024;
+byte imageByteArray[imageBytes];
+int imageNumReceived = 0;
+
+byte flagByte;
+
+const int tmpSize = 32 * 1024;
+byte tmpArray[tmpSize];
+
+int line = 1;
+
+
 void setup()
 {
     Serial.begin(9600);
@@ -40,17 +57,14 @@ void setup()
 /*** Handlers for DW1000 receive / transmit status ***/
 void handleSent()
 {
-    Serial.println("handled sent");
     sent = true;
 }
 void handleReceived()
 {
-    Serial.println("handled received");
     received = true;
 }
 void handleReceiveFailed()
 {
-    Serial.println("handled error");
     rxError = true;
 }
 /*****************************************************/
@@ -58,7 +72,7 @@ void handleReceiveFailed()
 /*** Setup DW1000 permanent receive ***/
 void receiver()
 {
-    digitalWrite(PIN_LED_2, LOW);
+    digitalWrite(PIN_LED_2, HIGH);
     DW1000.newReceive();
     DW1000.setDefaults();
     DW1000.receivePermanently(true);
@@ -67,14 +81,11 @@ void receiver()
 }
 /*****************************************************/
 
-const int tmpSize = 32 * 1024;
-byte tmpArray[tmpSize];
+
 /*** Parse incoming information from the UWB (SPI) ***/
 
 void uwbReceiverParser()
 {
-    digitalWrite(PIN_LED_2, HIGH);
-
     String msg;
     DW1000.getData(msg);
     // Serial.println(msg);
@@ -85,24 +96,12 @@ void uwbReceiverParser()
 }
 /*****************************************************/
 
-const byte messageArrayBytes = 32;
-byte receivedMessageArray[messageArrayBytes];
-
-const byte textBytes = 32;
-byte textByteArray[textBytes];
-byte numReceived = 0;
-
-const int imageBytes = 32 * 1024;
-byte imageByteArray[imageBytes];
-int imageNumReceived = 0;
-
-byte flagByte;
 
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
-    delay(200);
     digitalWrite(PIN_LED_1, HIGH);
+    delay(500);
     static byte ndx = 0;
     static int imageNdx = 0;
     static boolean recvInProgress = false;
@@ -171,6 +170,7 @@ void serialReceiver()
         }
     }
     digitalWrite(PIN_LED_1, LOW);
+    delay(500);
     Serial.println("Serial receiver finished");
 
     // uwbTransmitter();
@@ -181,8 +181,8 @@ void serialReceiver()
 /** Function for transmitting information with the DW1000 **/
 void uwbTransmitter()
 {
-    delay(200);
     digitalWrite(PIN_LED_1, LOW);
+    delay(500);
     serialReceiver();
     DW1000.newTransmit();
     DW1000.setDefaults();
@@ -204,6 +204,7 @@ void uwbTransmitter()
     // String msg = "Dummy message";
     // DW1000.setData(msg);
     DW1000.startTransmit();
+    digitalWrite(PIN_LED_1, HIGH);
     // Serial.println("Transmit started");
 }
 
@@ -224,7 +225,7 @@ void uwbTransmitter()
     // }
 // }
 
-int line = 1;
+
 void showNewData()
 {
     if (newData == true)
@@ -301,7 +302,6 @@ void serialTransmitter(byte arr[])
 
 void clearBuffer()
 {
-    Serial.println("clearing buffer");
     while (Serial.available() > 0)
     {
         Serial.read();
@@ -408,15 +408,17 @@ void loop()
     if (Serial.available() > 0)
     {
         digitalWrite(PIN_LED_1, HIGH);
+        delay(500);
         // serialReceiver();
         uwbTransmitter();
+        delay(3000);
+        digitalWrite(PIN_LED_1, LOW);
         // isPrinting = false;
     }
 
     /* Route if information is received on the SPI (DW1000) */
     else if (received)
     {
-        digitalWrite(PIN_LED_2, HIGH);
         receiver();
         received = false;
         clearBuffer();
