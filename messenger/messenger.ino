@@ -52,6 +52,9 @@ void setup()
   DW1000.attachReceivedHandler(handleReceived);
   DW1000.attachReceiveFailedHandler(handleReceiveFailed);
 
+  clearBuffer();
+  delay(300);
+  
   receiver();
   setupReceiver = true;
 }
@@ -112,8 +115,6 @@ void uwbReceiverParser()
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
-  digitalWrite(PIN_LED_RED, LOW);
-  delay(10);
   digitalWrite(PIN_LED_RED, HIGH);
   static byte ndx = 0;
   static int imageNdx = 0;
@@ -184,7 +185,6 @@ void serialReceiver()
     }
   }
   digitalWrite(PIN_LED_RED, LOW);
-  delayMicroseconds(500);
   //  if (!isPrinting && newData) {
   //    printTextArray();
   //  }
@@ -226,11 +226,12 @@ void printTmpArray()
   int n = 0;
   while (tmpArray[n] != 0x3E) {
     digitalWrite(PIN_LED_RED, HIGH);
-    Serial.println(tmpArray[n], BIN);
+    Serial.print(char(tmpArray[n]));
     n++;
-    delayMicroseconds(1000);
+    delayMicroseconds(500);
     digitalWrite(PIN_LED_RED, LOW);
   }
+  Serial.print(char(tmpArray[n]));
   isPrinting = false;
   delay(10);
   clearBuffer();
@@ -240,7 +241,6 @@ void printTmpArray()
 void uwbTransmitter()
 {
   digitalWrite(PIN_LED_RED, LOW);
-  delay(500);
   serialReceiver();
   DW1000.newTransmit();
   DW1000.setDefaults();
@@ -266,9 +266,10 @@ void uwbTransmitter()
   numReceived = 0;
   imageNumReceived = 0;
   isFlagSet = false;
+  clearBuffer();
   //  Serial.print("newData: ");
   //  Serial.println(newData);
-  digitalWrite(PIN_LED_RED, HIGH);
+  //digitalWrite(PIN_LED_RED, HIGH);
   // Serial.println("Transmit started");
 }
 
@@ -468,10 +469,10 @@ void loop()
   /* Route if information is received on the Serial (USB) */
   if (Serial.available() > 0)
   {
-    digitalWrite(PIN_LED_RED, HIGH);
+    //digitalWrite(PIN_LED_RED, HIGH);
     // serialReceiver();
     uwbTransmitter();
-    digitalWrite(PIN_LED_RED, LOW);
+    //digitalWrite(PIN_LED_RED, LOW);
     // isPrinting = false;
   }
 
