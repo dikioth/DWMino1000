@@ -83,6 +83,11 @@ void receiver()
   delay(10);
   if (setupReceiver) {
     //serialTransmitter(tmpArray);
+    digitalWrite(PIN_LED_BLUE, LOW);
+    digitalWrite(PIN_LED_BLUE, HIGH);
+    digitalWrite(PIN_LED_BLUE, LOW);
+    digitalWrite(PIN_LED_BLUE, HIGH);
+    digitalWrite(PIN_LED_BLUE, LOW);
     printTmpArray();
   }
   received = false;
@@ -117,7 +122,7 @@ void serialReceiver()
   byte endMarker = 0x3E; // 0x3E == char '>'
   byte recByte;
 
-  while (Serial.available() > 0 && newData == false)
+  while (Serial.available() > 0 && !newData && !isPrinting)
   {
     if (recvInProgress == true)
     {
@@ -219,27 +224,15 @@ void printTmpArray()
 {
   isPrinting = true;
   int n = 0;
-  //Serial.println("printing tmpArray");
   while (tmpArray[n] != 0x3E) {
-    //Serial.print(n);
-    //Serial.print(": ");
-    Serial.print(tmpArray[n]);
+    digitalWrite(PIN_LED_RED, HIGH);
+    Serial.println(tmpArray[n], BIN);
     n++;
-    delay(1);
+    delayMicroseconds(1000);
+    digitalWrite(PIN_LED_RED, LOW);
   }
-  //  for (int n = 0; n < textBytes; n++) {
-  //    if (textByteArray[n] == 0x3E) {
-  //      Serial.print("Endmarker: ");
-  //      Serial.println(textByteArray[n]);
-  //      break;
-  //    }
-  //    Serial.print(n);
-  //    Serial.print(": ");
-  //    Serial.println(textByteArray[n]);
-  //  }
-  //Serial.print("Endmarker: ");
-  Serial.print(tmpArray[n]);
   isPrinting = false;
+  delay(10);
   clearBuffer();
 }
 
@@ -289,7 +282,9 @@ void serialTransmitter(byte data[])
   {
     Serial.print(data[i]);
     i++;
+    digitalWrite(PIN_LED_RED, HIGH);
     delay(1);
+    digitalWrite(PIN_LED_RED, LOW);
   }
 }
 
