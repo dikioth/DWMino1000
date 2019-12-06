@@ -1,3 +1,9 @@
+#include <deca_device_api.h>
+#include <deca_param_types.h>
+#include <deca_regs.h>
+#include <deca_types.h>
+#include <deca_version.h>
+
 #include <SPI.h>
 #include <DW1000.h>
 
@@ -9,6 +15,8 @@ constexpr uint8_t PIN_LED_RED = 3;
 constexpr uint8_t PIN_LED_BLUE = 2;
 constexpr uint8_t PIN_LED_YELLOW = 5;
 
+
+// Booleans
 volatile boolean received = false;
 volatile boolean sent = false;
 volatile boolean rxError = false;
@@ -17,14 +25,18 @@ boolean newData = false;
 boolean isFlagByteSet = false;
 boolean isPrinting = false;
 boolean isFlagSet = false;
+boolean setupReceiver = false;
 
-const int textBytes = 125;
-byte textByteArray[textBytes];
-byte numReceived = 0;
+// Constants
+const int SMALL_ARRAY_SIZE = 125;
+const int LARGE_ARRAY_SIZE = 32 * 1024;
 
-const int imageBytes = 32 * 1024;
-byte imageByteArray[imageBytes];
-int imageNumReceived = 0;
+
+// Bytes and byte arrays
+byte largeArray[LARGE_ARRAY_SIZE];
+byte smallArray[SMALL_ARRAY_SIZE];
+int SMALL_ARRAY_RECEIVED = 0;
+int LARGE_ARRAY_RECEIVED = 0;
 
 byte flagByte;
 
@@ -33,7 +45,7 @@ byte tmpArray[tmpSize];
 
 int line = 1;
 
-boolean setupReceiver = false;
+/*** SETUP ***/
 void setup()
 {
   Serial.begin(115200);
@@ -47,6 +59,10 @@ void setup()
   DW1000.setDeviceAddress(1);
   DW1000.setNetworkId(10);
   DW1000.commitConfiguration();
+  
+  int versionnr = dwt_apiversion();
+  Serial.print("Version: ");
+  Serial.print(versionnr);
 
   DW1000.attachSentHandler(handleSent);
   DW1000.attachReceivedHandler(handleReceived);
@@ -54,10 +70,12 @@ void setup()
 
   clearBuffer();
   delay(300);
-  
+
   receiver();
   setupReceiver = true;
 }
+/*****************************************************/
+
 
 /*** Handlers for DW1000 receive / transmit status ***/
 void handleSent()
@@ -74,6 +92,7 @@ void handleReceiveFailed()
 }
 /*****************************************************/
 
+
 /*** Setup DW1000 permanent receive ***/
 void receiver()
 {
@@ -82,7 +101,7 @@ void receiver()
   DW1000.setDefaults();
   DW1000.receivePermanently(true);
   DW1000.startReceive();
-  DW1000.getData(tmpArray, tmpSize);
+  DW1000.getData(largeArray, LARGE_ARRAY_SIZE);
   delay(10);
   if (setupReceiver) {
     //serialTransmitter(tmpArray);
@@ -91,14 +110,14 @@ void receiver()
     digitalWrite(PIN_LED_BLUE, LOW);
     digitalWrite(PIN_LED_BLUE, HIGH);
     digitalWrite(PIN_LED_BLUE, LOW);
-    printTmpArray();
+    serialTransmitter();
   }
   received = false;
 }
 /*****************************************************/
 
-/*** Parse incoming information from the UWB (SPI) ***/
 
+/*** Parse incoming information from the UWB (SPI) ***/
 void uwbReceiverParser()
 {
   // String msg;
@@ -112,12 +131,69 @@ void uwbReceiverParser()
 }
 /*****************************************************/
 
+
+/*** PRINT ***/
+void serialTransmitter()
+{
+  if (!setupReceiver) {
+    return;
+  }
+  byte endMarker = 0x3E;
+  isPrinting = true;
+  int n = 0;
+  while (largeArray[n] != endMarker) {
+    digitalWrite(PIN_LED_RED, HIGH);
+    Serial.print(char(largeArray[n]));
+    n++;
+    delayMicroseconds(500);
+    digitalWrite(PIN_LED_RED, LOW);
+  }
+  Serial.print(endMarker); // Make sure to also write the end flag
+  isPrinting = false;
+  delay(2);
+  clearBuffer();
+}
+/*****************************************************/
+
+
+/*** Function for transmitting information with the DW1000 ***/
+void uwbTransmitter()
+{
+  digitalWrite(PIN_LED_RED, LOW);
+  serialReceiver();
+  DW1000.newTransmit();
+  DW1000.setDefaults();
+  switch (flagByte)
+  {
+    case 0x69:
+      DW1000.setData(largeArray, LARGE_ARRAY_RECEIVED);
+      break;
+
+    case 0x74:
+      DW1000.setData(smallArray, SMALL_ARRAY_RECEIVED);
+      break;
+  }
+  DW1000.startTransmit();
+  delay(2);
+  newData = false;
+  SMALL_ARRAY_RECEIVED = 0;
+  LARGE_ARRAY_RECEIVED = 0;
+  isFlagSet = false;
+  flagByte = '0';
+  clearBuffer();
+}
+/*****************************************************/
+
+
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
+  if (!setupReceiver) {
+    return;
+  }
   digitalWrite(PIN_LED_RED, HIGH);
-  static byte ndx = 0;
-  static int imageNdx = 0;
+  //static byte ndx = 0;
+  static int ndx = 0;
   static boolean recvInProgress = false;
 
   byte endMarker = 0x3E; // 0x3E == char '>'
@@ -133,28 +209,30 @@ void serialReceiver()
       {
         flagByte = recByte;
         isFlagSet = true;
+        Serial.println(flagByte);
         delay(10);
       }
       if (flagByte == 0x69) // 'i'
       {
         if (recByte != endMarker)
         {
-          imageByteArray[imageNdx] = recByte;
-          imageNdx++;
-          if (imageNdx >= imageBytes)
+          largeArray[ndx] = recByte;
+          ndx++;
+          Serial.println("Large array element added");
+          if (ndx >= LARGE_ARRAY_SIZE)
           {
-            imageNdx = imageBytes - 1;
+            ndx = LARGE_ARRAY_SIZE - 1;
           }
           delayMicroseconds(500);
         }
         else
         {
-          recvInProgress = false;
-          imageNumReceived = imageNdx + 1;    // save the number for use when printing
-          imageByteArray[imageNdx] = recByte; // append end marker to last index
-          imageNdx = 0;
+          LARGE_ARRAY_RECEIVED = ndx + 1;    // save the number for use when printing
+          Serial.println(LARGE_ARRAY_RECEIVED);
+          largeArray[ndx] = endMarker; // append end marker to last index
+          ndx = 0;
           newData = true;
-          delayMicroseconds(500);
+          recvInProgress = false;
         }
       }
 
@@ -162,19 +240,19 @@ void serialReceiver()
       {
         if (recByte != endMarker)
         {
-          textByteArray[ndx] = recByte;
+          smallArray[ndx] = recByte;
           ndx++;
+          Serial.println("Small array element added");
           delayMicroseconds(500);
         }
         else
         {
-          recvInProgress = false;
-          numReceived = ndx;        // save the number for use when printing
-          textByteArray[ndx] = recByte; // append end marker to last index
+          SMALL_ARRAY_RECEIVED = ndx + 1;        // save the number for use when printing
+          Serial.println(SMALL_ARRAY_RECEIVED);
+          smallArray[ndx] = endMarker; // append end marker to last index
           ndx = 0;
           newData = true;
-          delayMicroseconds(500);
-          // serialTransmitter(textByteArray);
+          recvInProgress = false;
         }
       }
 
@@ -185,183 +263,11 @@ void serialReceiver()
     }
   }
   digitalWrite(PIN_LED_RED, LOW);
-  //  if (!isPrinting && newData) {
-  //    printTextArray();
-  //  }
-  // uwbTransmitter();
-  // showNewData();
 }
 /*****************************************************/
-void printTextArray()
-{
-  isPrinting = true;
-  int n = 0;
-  Serial.println("printing textArray");
-  while (textByteArray[n] != 0x3E) {
-    Serial.print(n);
-    Serial.print(": ");
-    Serial.println(textByteArray[n]);
-    n++;
-    delay(1);
-  }
-  //  for (int n = 0; n < textBytes; n++) {
-  //    if (textByteArray[n] == 0x3E) {
-  //      Serial.print("Endmarker: ");
-  //      Serial.println(textByteArray[n]);
-  //      break;
-  //    }
-  //    Serial.print(n);
-  //    Serial.print(": ");
-  //    Serial.println(textByteArray[n]);
-  //  }
-  Serial.print("Endmarker: ");
-  Serial.println(textByteArray[n]);
-  isPrinting = false;
-  clearBuffer();
-}
 
-void printTmpArray()
-{
-  isPrinting = true;
-  int n = 0;
-  while (tmpArray[n] != 0x3E) {
-    digitalWrite(PIN_LED_RED, HIGH);
-    Serial.print(char(tmpArray[n]));
-    n++;
-    delayMicroseconds(500);
-    digitalWrite(PIN_LED_RED, LOW);
-  }
-  Serial.print(char(tmpArray[n]));
-  isPrinting = false;
-  delay(10);
-  clearBuffer();
-}
 
-/** Function for transmitting information with the DW1000 **/
-void uwbTransmitter()
-{
-  digitalWrite(PIN_LED_RED, LOW);
-  serialReceiver();
-  DW1000.newTransmit();
-  DW1000.setDefaults();
-  DW1000.setData(textByteArray, textBytes);
-  //   String test = "ttestmsg>";
-  //   DW1000.setData(test);
-  // switch (flagByte)
-  // {
-  // case 0x69:
-  //     DW1000.setData(imageByteArray, imageNumReceived);
-  //     break;
-
-  // case 0x74:
-  //     DW1000.setData(textByteArray, numReceived);
-  //     break;
-  // default:
-  //     break;
-  // }
-  // String msg = "Dummy message";
-  // DW1000.setData(msg);
-  DW1000.startTransmit();
-  newData = false;
-  numReceived = 0;
-  imageNumReceived = 0;
-  isFlagSet = false;
-  clearBuffer();
-  //  Serial.print("newData: ");
-  //  Serial.println(newData);
-  //digitalWrite(PIN_LED_RED, HIGH);
-  // Serial.println("Transmit started");
-}
-
-void serialTransmitter(byte data[])
-{
-
-  //  Serial.write(data, len);
-  //  boolean isTransmitDone = false;
-  int i = 0;
-  while (data[i] != 0x3E)
-  {
-    Serial.print(data[i]);
-    i++;
-    digitalWrite(PIN_LED_RED, HIGH);
-    delay(1);
-    digitalWrite(PIN_LED_RED, LOW);
-  }
-}
-
-//void showNewData()
-//{
-//  if (newData == true)
-//  {
-//    //Serial.print("Flagbyte received: ");
-//    //Serial.println(flagByte);
-//
-//    switch (flagByte)
-//    {
-//      case 0x69:
-//        for (int n = 0; n < imageNumReceived; n++)
-//        {
-//
-//          Serial.print(imageByteArray[n], BIN);
-//          Serial.print(' ');
-//          if ((n + 1) % 4 == 0)
-//          {
-//            Serial.print("\t: ");
-//            Serial.println(line);
-//            line++;
-//          }
-//        }
-//        break;
-//
-//      case 0x74:
-//        for (byte n = 0; n < numReceived; n++)
-//        {
-//
-//          Serial.print(textByteArray[n], BIN);
-//          Serial.print(' ');
-//          if ((n + 1) % 4 == 0)
-//          {
-//            Serial.print("\t: ");
-//            Serial.println(line);
-//            line++;
-//          }
-//        }
-//        break;
-//    }
-//
-//    Serial.println();
-//    newData = false;
-//    numReceived = 0;
-//    imageNumReceived = 0;
-//    isFlagSet = false;
-//  }
-//}
-//
-//void serialTransmitter(byte arr[])
-//{
-//
-//  int n = 0;
-//  while (arr[n] != 0x3E)
-//  {
-//    Serial.print(arr[n], BIN);
-//    Serial.print(' ');
-//    if ((n + 1) % 4 == 0)
-//    {
-//      Serial.print("\t: ");
-//      Serial.println(line);
-//      line++;
-//    }
-//    n++;
-//  }
-//  Serial.print("\nend marker: ");
-//  Serial.println(arr[n]);
-//  Serial.println();
-//  newData = false;
-//  numReceived = 0;
-//  imageNumReceived = 0;
-//  isFlagSet = false;
-//}
-
+/*** LOOP ***/
 void clearBuffer()
 {
   while (Serial.available() > 0)
@@ -369,99 +275,6 @@ void clearBuffer()
     Serial.read();
   }
 }
-
-/* void receiveMessage(byte flagByte)
-  {
-    const int messageArrayBytes = 256;
-    byte receivedMessageArray[messageArrayBytes];
-    receivedMessageArray[0] = flagByte;
-    static int ndx = 1;
-    byte numReceived = 0;
-
-    static boolean recvInProgress = false;
-
-    byte endMarker = 0x3E; // 0x3E == char '>'
-    byte recByte;
-    while (Serial.available() > 0 && newData == false)
-    {
-        Serial.println("reading...");
-        recByte = Serial.read();
-
-        if (recvInProgress == true)
-        {
-            if (recByte != endMarker)
-            {
-                receivedMessageArray[ndx] = recByte;
-                ndx++;
-                if (ndx >= messageArrayBytes)
-                {
-                    // transmit(textByteArray);
-                    ndx = messageArrayBytes - 1;
-                }
-            }
-            else
-            {
-                recvInProgress = false;
-                numReceived = ndx + 1;                         // save the number for use when printing
-                receivedMessageArray[numReceived] = endMarker; // add endMarker for reading in other arduino
-                ndx = 1;
-                newData = true;
-                Serial.println("receive in progress is done");
-            }
-        }
-    }
-
-    if (recvInProgress == false && newData == true)
-    {
-        // uwbTransmitter(receivedMessageArray, numReceived);
-    }
-  }
-
-  void receiveImage(byte flagByte)
-  {
-    const int imageArrayBytes = 32 * 2048;
-    byte receivedImageArray[imageArrayBytes];
-    receivedImageArray[0] = flagByte;
-    static int ndx = 1;
-    byte numReceived = 0;
-
-    static boolean recvInProgress = false;
-
-    byte endMarker = 0x3E; // 0x3E == char '>'
-    byte recByte;
-    while (Serial.available() > 0 && newData == false)
-    {
-
-        recByte = Serial.read();
-
-        if (recvInProgress == true)
-        {
-            if (recByte != endMarker)
-            {
-                receivedImageArray[ndx] = recByte;
-                ndx++;
-                if (ndx >= imageArrayBytes)
-                {
-                    // transmit(textByteArray);
-                    ndx = imageArrayBytes - 1;
-                }
-            }
-            else
-            {
-                recvInProgress = false;
-                numReceived = ndx + 1;                       // save the number for use when printing
-                receivedImageArray[numReceived] = endMarker; // add endMarker for reading in other arduino
-                ndx = 1;
-                newData = true;
-            }
-        }
-    }
-
-    if (recvInProgress == false && newData == true)
-    {
-        // uwbTransmitter(receivedImageArray, numReceived);
-    }
-  } */
 
 /*** LOOP ***/
 void loop()
@@ -493,3 +306,4 @@ void loop()
     digitalWrite(PIN_LED_YELLOW, LOW);
   }
 }
+/*****************************************************/

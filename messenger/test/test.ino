@@ -14,10 +14,6 @@ void setup() {
   Serial.begin(115200);
   Serial.println("done setup");
 
-  while (!Serial) {
-    // Wait for Serial port to connect
-  }
-
   // Clear buffer
   clearBuffer();
 }
@@ -30,13 +26,14 @@ void loop() {
 
 byte flagByte;
 boolean isFlagSet = false;
+int numReceived = 0;
 
 void serialReceiver() {
-  byte tmpArr[len - 1];
+
   byte recByte;
   int index = 0;
   while (Serial.available() > 0 && !myFlag) {
-
+    Serial.println("Inside while");
     //if ( Serial.available()) {
 
     recByte = Serial.read();
@@ -44,29 +41,27 @@ void serialReceiver() {
     if (!isFlagSet)
     {
       flagByte = recByte;
-      bufferArray[index] = flagByte;
-      index++;
       isFlagSet = true;
+      Serial.println(flagByte);
       delayMicroseconds(500);
     }
     //bufferBytesRead = Serial.readBytes(tmpArr, len-1);
+
+    //myFlag = true;
+    //newData = true;
+    if (recByte != 0x3E) {
+      bufferArray[index] = recByte;
+      index++;
+      delayMicroseconds(500);
+    }
     else {
-      //myFlag = true;
-      //newData = true;
-      if (recByte == 0x3E) {
-        Serial.println("Endbyte");
-        bufferArray[index] = recByte;
-        inProgress = false;
-        myFlag = true;
-        newData = true;
-        isFlagSet = false;
-        delayMicroseconds(500);
-      }
-      else {
-        bufferArray[index] = recByte;
-        index++;
-        delayMicroseconds(500);
-      }
+      bufferArray[index] = recByte; // Append end marker
+      numReceived = index + 1;
+      inProgress = false;
+      myFlag = true;
+      newData = true;
+      isFlagSet = false;
+      delayMicroseconds(500);
     }
   }
   if (!isPrinting && newData) {
@@ -83,13 +78,12 @@ void printArray() {
     Serial.println(bufferArray[n]);
     n++;
   }
-  Serial.print(len - 1);
-  Serial.print(": ");
-  Serial.println(bufferArray[len - 1]);
+  Serial.print("Num received: ");
+  Serial.println(numReceived);
   myFlag = false;
   isPrinting = false;
   newData = false;
-
+  numReceived = 0;
   // Clear buffer
   clearBuffer();
 }
