@@ -15,7 +15,6 @@ constexpr uint8_t PIN_LED_RED = 3;
 constexpr uint8_t PIN_LED_BLUE = 2;
 constexpr uint8_t PIN_LED_YELLOW = 5;
 
-
 // Booleans
 volatile boolean received = false;
 volatile boolean sent = false;
@@ -31,17 +30,17 @@ boolean isTransmissionComplete = false;
 boolean isArrayFull = false;
 
 // Constants
-const int SMALL_ARRAY_SIZE = 120;
-const int RECEIVE_ARRAY_SIZE = 120;
-
+const int SMALL_ARRAY_SIZE = 125;
+const int RECEIVE_ARRAY_SIZE = 127;
 
 // Bytes and byte arrays
-byte receiveArray[SMALL_ARRAY_SIZE];
+byte receiveArray[RECEIVE_ARRAY_SIZE];
 byte smallArray[SMALL_ARRAY_SIZE];
 int SMALL_ARRAY_RECEIVED = 0;
 int LARGE_ARRAY_RECEIVED = 0;
 
 byte flagByte;
+
 
 /*** SETUP ***/
 void setup()
@@ -74,15 +73,9 @@ void setup()
 }
 /*****************************************************/
 
-
 /*** Handlers for DW1000 receive / transmit status ***/
 void handleSent()
 {
-    digitalWrite(PIN_LED_YELLOW, HIGH);
-    digitalWrite(PIN_LED_YELLOW, LOW);
-    digitalWrite(PIN_LED_YELLOW, HIGH);
-    digitalWrite(PIN_LED_YELLOW, LOW);
-    //    Serial.println("Handle sent");
     sent = true;
 }
 void handleReceived()
@@ -95,7 +88,6 @@ void handleReceiveFailed()
 }
 /*****************************************************/
 
-
 /*** Setup DW1000 permanent receive ***/
 void receiver()
 {
@@ -107,49 +99,52 @@ void receiver()
 }
 /*****************************************************/
 
-
 /*** Parse incoming information from the UWB (SPI) ***/
 void uwbReceiver()
 {
-    //serialTransmitter(tmpArray);
-    //    Serial.println("uwbReceiver");
-    digitalWrite(PIN_LED_BLUE, LOW);
-    digitalWrite(PIN_LED_BLUE, HIGH);
-    digitalWrite(PIN_LED_BLUE, LOW);
-    digitalWrite(PIN_LED_BLUE, HIGH);
-    digitalWrite(PIN_LED_BLUE, LOW);
-    digitalWrite(PIN_LED_BLUE, HIGH);
+    digitalWrite(PIN_LED_RED, HIGH);
     DW1000.getData(receiveArray, SMALL_ARRAY_SIZE);
     serialTransmitter();
     received = false;
+    digitalWrite(PIN_LED_RED, LOW);
 }
 /*****************************************************/
-
 
 /*** PRINT ***/
 void serialTransmitter()
 {
-//    Serial.println("serialTransmitter");
+    //    Serial.println("serialTransmitter");
     byte endMarker = 0x3E;
-    isPrinting = true;
     int n = 0;
-    while (receiveArray[n] != endMarker && n < SMALL_ARRAY_SIZE) {
-        digitalWrite(PIN_LED_RED, HIGH);
+    while (receiveArray[n] != endMarker && n < SMALL_ARRAY_SIZE)
+    {
         Serial.print(char(receiveArray[n]));
         n++;
-        delayMicroseconds(300);
-        digitalWrite(PIN_LED_RED, LOW);
+        digitalWrite(PIN_LED_BLUE, HIGH);
+        delayMicroseconds(100);
+        digitalWrite(PIN_LED_BLUE, LOW);
     }
-    if (receiveArray[n] == endMarker) {
+    //    for (int n = 0; n < SMALL_ARRAY_SIZE; n++) {
+    //        Serial.print(char(receiveArray[n]));
+    //        delayMicroseconds(300);
+    //        if (receiveArray[n] == endMarker) {
+    //            break;
+    //        }
+    //        //n++;
+    //        digitalWrite(PIN_LED_BLUE, HIGH);
+    //        digitalWrite(PIN_LED_BLUE, LOW);
+    //    }
+
+    if (receiveArray[n] == endMarker)
+    {
         Serial.print(char(endMarker));
+        delayMicroseconds(100);
+        clearBuffer();
     }
 
     isPrinting = false;
-    delay(1);
-    clearBuffer();
 }
 /*****************************************************/
-
 
 /*** Function for transmitting information with the DW1000 ***/
 void uwbTransmitter()
@@ -161,23 +156,26 @@ void uwbTransmitter()
     //        Serial.println("suppressing frame check...");
     //        DW1000.suppressFrameCheck(true);
     //    }
-    DW1000.setData(smallArray, SMALL_ARRAY_RECEIVED);
+    DW1000.setData(smallArray, SMALL_ARRAY_SIZE);
     DW1000.startTransmit();
-    delay(1000);
+
+    while (!DW1000.isTransmitDone()) {
+        isPartialTransmissionComplete = false;
+    }
     isPartialTransmissionComplete = true;
     isArrayFull = false;
 
-    if (isTransmissionComplete) {
-        newData = false;
-        SMALL_ARRAY_RECEIVED = 0;
-        LARGE_ARRAY_RECEIVED = 0;
-        isFlagSet = false;
-        flagByte = '0';
-        isTransmissionComplete = false;
-    }
+    //    if (isTransmissionComplete)
+    //    {
+    //        newData = false;
+    //        SMALL_ARRAY_RECEIVED = 0;
+    //        LARGE_ARRAY_RECEIVED = 0;
+    //        isFlagSet = false;
+    //        flagByte = '0';
+    //        isTransmissionComplete = false;
+    //    }
 }
 /*****************************************************/
-
 
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
@@ -191,90 +189,71 @@ void serialReceiver()
     byte endMarker = 0x3E; // 0x3E == char '>'
     byte recByte;
 
-    while (Serial.available() > 0 && !newData && !isPrinting)
+    while (Serial.available() > 0 && !newData)
     {
         if (recvInProgress == true)
         {
-            recByte = Serial.read();
+            //            recByte = Serial.read();
+            int len = Serial.readBytes(smallArray, SMALL_ARRAY_SIZE);
 
             if (!isFlagSet)
             {
-                flagByte = recByte;
+                flagByte = smallArray[0];
                 isFlagSet = true;
-                delayMicroseconds(500);
             }
-            //            if (flagByte == 0x69) // 'i'
-            //            {
-            //                if (recByte != endMarker)
-            //                {
-            //                    largeArray[ndx] = recByte;
-            //                    ndx++;
-            //                    Serial.println("Large array element added");
-            //                    if (ndx >= RECEIVE_ARRAY_SIZE)
-            //                    {
-            //                        ndx = RECEIVE_ARRAY_SIZE - 1;
-            //                    }
-            //                    delayMicroseconds(500);
-            //                }
-            //                else
-            //                {
-            //                    LARGE_ARRAY_RECEIVED = ndx + 1;    // save the number for use when printing
-            //                    Serial.println(LARGE_ARRAY_RECEIVED);
-            //                    largeArray[ndx] = endMarker; // append end marker to last index
-            //                    ndx = 0;
-            //                    newData = true;
-            //                    recvInProgress = false;
-            //                }
-            //            }
 
-            //            else if (flagByte == 0x74) // 't'
-            //            {
-            if (recByte != endMarker)
-            {
-                smallArray[ndx] = recByte;
-                ndx++;
-                if (ndx >= SMALL_ARRAY_SIZE) {
-                    //                    smallArray[ndx] = endMarker;
-                    SMALL_ARRAY_RECEIVED = ndx;
-                    isArrayFull = true;
-                    Serial.print("received size 2: ");
-                    Serial.println(SMALL_ARRAY_RECEIVED);
-
-                    uwbTransmitter();
-                    delay(1000);
-                    ndx = 0;
-                    isPartialTransmissionComplete = false;
-                    delayMicroseconds(500);
+            uwbTransmitter();
+            for (int n = 0; n < len; n++) {
+                if (smallArray[n] == endMarker && smallArray[n + 1] < 32) {
+                    newData = false;
+                    isFlagSet = false;
+                    flagByte = '0';
                 }
-                //                Serial.println("Small array element added");
-                delayMicroseconds(500);
             }
-            else
-            {
-                SMALL_ARRAY_RECEIVED = ndx + 1;        // save the number for use when printing
-                Serial.print("received size 3: ");
-                Serial.println(SMALL_ARRAY_RECEIVED);
-                //                Serial.println(SMALL_ARRAY_RECEIVED);
-                smallArray[ndx] = endMarker; // append end marker to last index
-                ndx = 0;
-                newData = true;
-                recvInProgress = false;
-                isTransmissionComplete = true;
-            }
+            delay(2);
+            //            if (recByte != endMarker)
+            //            {
+            //                smallArray[ndx] = recByte;
+            //                ndx++;
+            //                delayMicroseconds(500);
+            //                if (ndx >= SMALL_ARRAY_SIZE)
+            //                {
+            //                    //                    smallArray[ndx] = endMarker;
+            //                    SMALL_ARRAY_RECEIVED = ndx;
+            //                    isArrayFull = true;
+            //
+            //                    uwbTransmitter();
+            //                    delay(5000);
+            //
+            //                    ndx = 0;
+            //                    isPartialTransmissionComplete = false;
+            //                }
+            //                Serial.println("Small array element added");
+            //            }
+            //            else
+            //            {
+            //                SMALL_ARRAY_RECEIVED = ndx + 1; // save the number for use when printing
+            //                //                Serial.println(SMALL_ARRAY_RECEIVED);
+            //                smallArray[ndx] = endMarker; // append end marker to last index
+            //                ndx = 0;
+            //                delayMicroseconds(500);
+            //                newData = true;
+            //                recvInProgress = false;
+            //                isTransmissionComplete = true;
             //            }
         }
+
         else
         {
             recvInProgress = true;
         }
     }
-    uwbTransmitter();
+    //    uwbTransmitter();
     digitalWrite(PIN_LED_RED, LOW);
     delay(200);
     clearBuffer();
 }
 /*****************************************************/
-
 
 /*** A function for clearing any remains on the buffer. ***/
 void clearBuffer()
@@ -301,8 +280,8 @@ void loop()
     if (received)
     {
         digitalWrite(PIN_LED_BLUE, LOW);
-        //        Serial.println("Loop 2, received is true");
         uwbReceiver();
+        digitalWrite(PIN_LED_BLUE, HIGH);
     }
 
     /* Check for errors */
