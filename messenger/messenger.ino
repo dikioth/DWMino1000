@@ -118,7 +118,7 @@ void serialTransmitter()
     int n = 0;
     while (receiveArray[n] != endMarker && n < SMALL_ARRAY_SIZE)
     {
-        Serial.print(char(receiveArray[n]));
+        Serial.print(receiveArray[n], HEX);
         n++;
         digitalWrite(PIN_LED_BLUE, HIGH);
         delayMicroseconds(100);
@@ -159,11 +159,11 @@ void uwbTransmitter()
     DW1000.setData(smallArray, SMALL_ARRAY_SIZE);
     DW1000.startTransmit();
 
-    while (!DW1000.isTransmitDone()) {
-        isPartialTransmissionComplete = false;
-    }
-    isPartialTransmissionComplete = true;
-    isArrayFull = false;
+//    while (!DW1000.isTransmitDone()) {
+//        isPartialTransmissionComplete = false;
+//    }
+//    isPartialTransmissionComplete = true;
+//    isArrayFull = false;
 
     //    if (isTransmissionComplete)
     //    {
@@ -196,21 +196,21 @@ void serialReceiver()
             //            recByte = Serial.read();
             int len = Serial.readBytes(smallArray, SMALL_ARRAY_SIZE);
 
-            if (!isFlagSet)
-            {
-                flagByte = smallArray[0];
-                isFlagSet = true;
-            }
+//            if (!isFlagSet)
+//            {
+//                flagByte = smallArray[0];
+//                isFlagSet = true;
+//            }
 
-            uwbTransmitter();
-            for (int n = 0; n < len; n++) {
-                if (smallArray[n] == endMarker && smallArray[n + 1] < 32) {
-                    newData = false;
-                    isFlagSet = false;
-                    flagByte = '0';
-                }
-            }
-            delay(2);
+//            uwbTransmitter();
+//            for (int n = 0; n < len; n++) {
+//                if (smallArray[n] == endMarker && smallArray[n + 1] < 32) {
+//                    newData = false;
+//                    isFlagSet = false;
+//                    flagByte = '0';
+//                }
+//            }
+//            delay(2);
             //            if (recByte != endMarker)
             //            {
             //                smallArray[ndx] = recByte;
@@ -248,10 +248,9 @@ void serialReceiver()
             recvInProgress = true;
         }
     }
-    //    uwbTransmitter();
+    uwbTransmitter();
     digitalWrite(PIN_LED_RED, LOW);
     delay(200);
-    clearBuffer();
 }
 /*****************************************************/
 
