@@ -30,13 +30,13 @@ boolean isTransmissionComplete = false;
 boolean isArrayFull = false;
 
 // Constants
-const int SMALL_ARRAY_SIZE = 125;
+const int ARRAY_SIZE = 125;
 const int RECEIVE_ARRAY_SIZE = 127;
 
 // Bytes and byte arrays
 byte receiveArray[RECEIVE_ARRAY_SIZE];
-byte smallArray[SMALL_ARRAY_SIZE];
-int SMALL_ARRAY_RECEIVED = 0;
+byte dataArray[ARRAY_SIZE];
+int DATA_ARRAY_NUM_RECEIVED = 0;
 int LARGE_ARRAY_RECEIVED = 0;
 
 byte flagByte;
@@ -56,11 +56,6 @@ void setup()
     DW1000.setDeviceAddress(1);
     DW1000.setNetworkId(10);
     DW1000.commitConfiguration();
-
-    //    int versionnr = dwt_apiversion();
-    //    Serial.print("Version: ");
-    //    Serial.print(versionnr);
-
     DW1000.attachSentHandler(handleSent);
     DW1000.attachReceivedHandler(handleReceived);
     DW1000.attachReceiveFailedHandler(handleReceiveFailed);
@@ -103,7 +98,11 @@ void receiver()
 void uwbReceiver()
 {
     digitalWrite(PIN_LED_RED, HIGH);
-    DW1000.getData(receiveArray, SMALL_ARRAY_SIZE);
+    //    unsigned long startTime = micros();
+    DW1000.getData(receiveArray, ARRAY_SIZE);
+    //    unsigned long endTime = micros();
+    //    Serial.println("Uwb receiver took: " + String(endTime - startTime) + " microseconds");
+    delay(1);
     serialTransmitter();
     received = false;
     digitalWrite(PIN_LED_RED, LOW);
@@ -113,36 +112,42 @@ void uwbReceiver()
 /*** PRINT ***/
 void serialTransmitter()
 {
-    //    Serial.println("serialTransmitter");
-    byte endMarker = 0x3E;
     int n = 0;
-    while (receiveArray[n] != endMarker && n < SMALL_ARRAY_SIZE)
+    byte endMarker = 0x3E;
+    isPrinting = true;
+    //    unsigned long startTime = micros();
+    while (n < ARRAY_SIZE)
     {
-        Serial.print(receiveArray[n], HEX);
-        n++;
-        digitalWrite(PIN_LED_BLUE, HIGH);
-        delayMicroseconds(100);
-        digitalWrite(PIN_LED_BLUE, LOW);
+        if (receiveArray[n] == endMarker) {
+            if (receiveArray[n + 1] == endMarker && receiveArray[n + 2] == endMarker) {
+                Serial.print(char(receiveArray[n]));
+                delayMicroseconds(500);
+                Serial.print(char(receiveArray[n + 1]));
+                delayMicroseconds(500);
+                Serial.print(char(receiveArray[n + 2]));
+                break;
+            }
+            else {
+                Serial.print(char(receiveArray[n]));
+                n++;
+                delayMicroseconds(500);
+            }
+        }
+        else {
+            Serial.print(char(receiveArray[n]));
+            n++;
+            delayMicroseconds(500);
+        }
     }
-    //    for (int n = 0; n < SMALL_ARRAY_SIZE; n++) {
-    //        Serial.print(char(receiveArray[n]));
-    //        delayMicroseconds(300);
-    //        if (receiveArray[n] == endMarker) {
-    //            break;
-    //        }
-    //        //n++;
-    //        digitalWrite(PIN_LED_BLUE, HIGH);
-    //        digitalWrite(PIN_LED_BLUE, LOW);
+    digitalWrite(PIN_LED_RED, LOW);
+    //    if (receiveArray[n] == endMarker) {
+    //        Serial.println(char(endMarker));
     //    }
-
-    if (receiveArray[n] == endMarker)
-    {
-        Serial.print(char(endMarker));
-        delayMicroseconds(100);
-        clearBuffer();
-    }
-
+    //    unsigned long endTime = micros();
+    //    Serial.println("Serial transmitter took: " + String(endTime - startTime) + " microseconds");
     isPrinting = false;
+    delayMicroseconds(500);
+    clearBuffer();
 }
 /*****************************************************/
 
@@ -150,107 +155,64 @@ void serialTransmitter()
 void uwbTransmitter()
 {
     digitalWrite(PIN_LED_RED, HIGH);
+    //    unsigned long startTime = micros();
     DW1000.newTransmit();
     DW1000.setDefaults();
-    //    if (isArrayFull) {
-    //        Serial.println("suppressing frame check...");
-    //        DW1000.suppressFrameCheck(true);
-    //    }
-    DW1000.setData(smallArray, SMALL_ARRAY_SIZE);
+    DW1000.setData(dataArray, DATA_ARRAY_NUM_RECEIVED);
     DW1000.startTransmit();
-
-//    while (!DW1000.isTransmitDone()) {
-//        isPartialTransmissionComplete = false;
-//    }
-//    isPartialTransmissionComplete = true;
-//    isArrayFull = false;
-
-    //    if (isTransmissionComplete)
-    //    {
-    //        newData = false;
-    //        SMALL_ARRAY_RECEIVED = 0;
-    //        LARGE_ARRAY_RECEIVED = 0;
-    //        isFlagSet = false;
-    //        flagByte = '0';
-    //        isTransmissionComplete = false;
-    //    }
+    newData = false;
+    //    unsigned long endTime = micros();
+    //    Serial.println("Uwb transmitter took: " + String(endTime - startTime) + " microseconds");
+    delay(1);
+    clearBuffer();
+    digitalWrite(PIN_LED_RED, LOW);
 }
 /*****************************************************/
 
 /*** Parse incoming information from Serial (USB) ***/
 void serialReceiver()
 {
-    //    Serial.println("serialReceiver");
     digitalWrite(PIN_LED_RED, HIGH);
-    //static byte ndx = 0;
     static int ndx = 0;
     static boolean recvInProgress = false;
 
     byte endMarker = 0x3E; // 0x3E == char '>'
     byte recByte;
+    DATA_ARRAY_NUM_RECEIVED = 0;
+    //    unsigned long startTime = micros();
 
-    while (Serial.available() > 0 && !newData)
+    while (Serial.available() > 0 && !newData && ndx < ARRAY_SIZE && !isPrinting)
     {
         if (recvInProgress == true)
         {
+            //Serial.readBytes(dataArray, ARRAY_SIZE);
             //            recByte = Serial.read();
-            int len = Serial.readBytes(smallArray, SMALL_ARRAY_SIZE);
-
-//            if (!isFlagSet)
-//            {
-//                flagByte = smallArray[0];
-//                isFlagSet = true;
-//            }
-
-//            uwbTransmitter();
-//            for (int n = 0; n < len; n++) {
-//                if (smallArray[n] == endMarker && smallArray[n + 1] < 32) {
-//                    newData = false;
-//                    isFlagSet = false;
-//                    flagByte = '0';
-//                }
-//            }
-//            delay(2);
-            //            if (recByte != endMarker)
-            //            {
-            //                smallArray[ndx] = recByte;
+            //            Serial.println("Read: " + String(recByte));
+            DATA_ARRAY_NUM_RECEIVED = Serial.readBytes(dataArray, ARRAY_SIZE);
+            newData = true;
+            //            if (recByte != endMarker) {
+            //                dataArray[ndx] = recByte;
             //                ndx++;
-            //                delayMicroseconds(500);
-            //                if (ndx >= SMALL_ARRAY_SIZE)
-            //                {
-            //                    //                    smallArray[ndx] = endMarker;
-            //                    SMALL_ARRAY_RECEIVED = ndx;
-            //                    isArrayFull = true;
-            //
-            //                    uwbTransmitter();
-            //                    delay(5000);
-            //
-            //                    ndx = 0;
-            //                    isPartialTransmissionComplete = false;
-            //                }
-            //                Serial.println("Small array element added");
+            //                delayMicroseconds(300);
             //            }
-            //            else
-            //            {
-            //                SMALL_ARRAY_RECEIVED = ndx + 1; // save the number for use when printing
-            //                //                Serial.println(SMALL_ARRAY_RECEIVED);
-            //                smallArray[ndx] = endMarker; // append end marker to last index
+            //            else {
+            //                Serial.println("Endmarker detected, adding it");
+            //                dataArray[ndx] = endMarker;
+            //                delayMicroseconds(300);
+            //                DATA_ARRAY_NUM_RECEIVED = ndx + 1;
             //                ndx = 0;
-            //                delayMicroseconds(500);
             //                newData = true;
-            //                recvInProgress = false;
-            //                isTransmissionComplete = true;
             //            }
-        }
 
+        }
         else
         {
             recvInProgress = true;
         }
     }
+    //    unsigned long endTime = micros();
+    //    Serial.println("Serial receiver took: " + String(endTime - startTime) + " microseconds");
     uwbTransmitter();
-    digitalWrite(PIN_LED_RED, LOW);
-    delay(200);
 }
 /*****************************************************/
 
