@@ -18,7 +18,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "ACK DATA TX v1.0"
 

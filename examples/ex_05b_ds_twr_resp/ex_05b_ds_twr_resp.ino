@@ -23,7 +23,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "DS TWR RESP v1.2"
 
@@ -132,7 +131,8 @@ int main(void)
     {
         lcd_display_str("INIT FAILED");
         while (1)
-        { };
+        {
+        };
     }
     spi_set_rate_high();
 
@@ -157,7 +157,8 @@ int main(void)
 
         /* Poll for reception of a frame or error/timeout. See NOTE 8 below. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-        { };
+        {
+        };
 
         if (status_reg & SYS_STATUS_RXFCG)
         {
@@ -195,7 +196,7 @@ int main(void)
                 /* Write and send the response message. See NOTE 10 below.*/
                 tx_resp_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
                 dwt_writetxdata(sizeof(tx_resp_msg), tx_resp_msg, 0); /* Zero offset in TX buffer. */
-                dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+                dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
                 ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
 
                 /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 11 below. */
@@ -206,7 +207,8 @@ int main(void)
 
                 /* Poll for reception of expected "final" frame or error/timeout. See NOTE 8 below. */
                 while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-                { };
+                {
+                };
 
                 /* Increment frame sequence number after transmission of the response message (modulo 256). */
                 frame_seq_nb++;

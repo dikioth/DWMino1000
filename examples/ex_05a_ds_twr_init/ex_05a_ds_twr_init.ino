@@ -22,7 +22,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "DS TWR INIT v1.2"
 
@@ -123,7 +122,8 @@ int main(void)
     {
         lcd_display_str("INIT FAILED");
         while (1)
-        { };
+        {
+        };
     }
     spi_set_rate_high();
 
@@ -146,7 +146,7 @@ int main(void)
         /* Write frame data to DW1000 and prepare transmission. See NOTE 8 below. */
         tx_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
         dwt_writetxdata(sizeof(tx_poll_msg), tx_poll_msg, 0); /* Zero offset in TX buffer. */
-        dwt_writetxfctrl(sizeof(tx_poll_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+        dwt_writetxfctrl(sizeof(tx_poll_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
 
         /* Start transmission, indicating that a response is expected so that reception is enabled automatically after the frame is sent and the delay
          * set by dwt_setrxaftertxdelay() has elapsed. */
@@ -154,7 +154,8 @@ int main(void)
 
         /* We assume that the transmission is achieved correctly, poll for reception of a frame or error/timeout. See NOTE 9 below. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-        { };
+        {
+        };
 
         /* Increment frame sequence number after transmission of the poll message (modulo 256). */
         frame_seq_nb++;
@@ -200,7 +201,7 @@ int main(void)
                 /* Write and send final message. See NOTE 8 below. */
                 tx_final_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
                 dwt_writetxdata(sizeof(tx_final_msg), tx_final_msg, 0); /* Zero offset in TX buffer. */
-                dwt_writetxfctrl(sizeof(tx_final_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+                dwt_writetxfctrl(sizeof(tx_final_msg), 0, 1);           /* Zero offset in TX buffer, ranging. */
                 ret = dwt_starttx(DWT_START_TX_DELAYED);
 
                 /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 12 below. */
@@ -208,7 +209,8 @@ int main(void)
                 {
                     /* Poll DW1000 until TX frame sent event set. See NOTE 9 below. */
                     while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
-                    { };
+                    {
+                    };
 
                     /* Clear TXFRS event. */
                     dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
@@ -296,7 +298,7 @@ static void final_msg_set_ts(uint8 *ts_field, uint64 ts)
     int i;
     for (i = 0; i < FINAL_MSG_TS_LEN; i++)
     {
-        ts_field[i] = (uint8) ts;
+        ts_field[i] = (uint8)ts;
         ts >>= 8;
     }
 }
