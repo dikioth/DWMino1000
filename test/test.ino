@@ -11,7 +11,6 @@
 constexpr uint8_t PIN_RST = 8; // reset pin
 constexpr uint8_t PIN_IRQ = 2; // irq pin
 constexpr uint8_t PIN_SS = 7;  // spi select pin
-
 constexpr uint8_t PIN_LED_RED = 3;
 constexpr uint8_t PIN_LED_BLUE = 2;
 constexpr uint8_t PIN_LED_YELLOW = 5;
@@ -189,14 +188,32 @@ void serialReceiver()
     {
         if (recvInProgress == true)
         {
+            //Serial.readBytes(dataArray, ARRAY_SIZE);
+            //            recByte = Serial.read();
+            //            Serial.println("Read: " + String(recByte));
             DATA_ARRAY_NUM_RECEIVED = Serial.readBytes(dataArray, ARRAY_SIZE);
             newData = true;
+            //            if (recByte != endMarker) {
+            //                dataArray[ndx] = recByte;
+            //                ndx++;
+            //                delayMicroseconds(300);
+            //            }
+            //            else {
+            //                Serial.println("Endmarker detected, adding it");
+            //                dataArray[ndx] = endMarker;
+            //                delayMicroseconds(300);
+            //                DATA_ARRAY_NUM_RECEIVED = ndx + 1;
+            //                ndx = 0;
+            //                newData = true;
+            //            }
         }
         else
         {
             recvInProgress = true;
         }
     }
+    //    unsigned long endTime = micros();
+    //    Serial.println("Serial receiver took: " + String(endTime - startTime) + " microseconds");
     uwbTransmitter();
 }
 /*****************************************************/
@@ -216,6 +233,9 @@ void loop()
     /* Route if information is received on the Serial (USB) */
     if (Serial.available() > 0)
     {
+        //        Serial.print("Loop 1, sent value is: ");
+        //        Serial.println(sent);
+        //        uwbTransmitter();
         serialReceiver();
     }
 
