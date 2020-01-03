@@ -165,7 +165,7 @@ int main(void)
         lcd_display_str(lcd_str);
 
         /* Execute a delay between transmissions. */
-        sleep_ms(tx_sleep_period);
+        delay(tx_sleep_period);
     }
 }
 

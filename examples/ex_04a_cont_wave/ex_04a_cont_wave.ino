@@ -74,7 +74,7 @@ int main(void)
     dwt_configcwmode(config.chan);
 
     /* Wait for the wanted duration of the continuous wave transmission. */
-    sleep_ms(CONT_WAVE_DURATION_MS);
+    delay(CONT_WAVE_DURATION_MS);
 
     /* Software reset of the DW1000 to deactivate continuous wave mode and go back to default state. Initialisation and configuration should be run
      * again if one wants to get the DW1000 back to normal operation. */

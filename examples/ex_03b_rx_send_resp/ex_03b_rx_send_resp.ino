@@ -16,6 +16,8 @@
  */
 #include "deca_device_api.h"
 #include "deca_regs.h"
+#include "deca_spi.h"
+#include <SPI.h>
 
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "RX SENDRESP v1.2"
@@ -66,100 +68,127 @@ static uint32 status_reg = 0;
 /* Hold copy of frame length of frame received (if good) so that it can be examined at a debug breakpoint. */
 static uint16 frame_len = 0;
 
+/* SPI PINS */
+constexpr uint8_t PIN_RST = 8; // reset pin
+constexpr uint8_t PIN_IRQ = 2; // irq pin
+constexpr uint8_t PIN_SS = 7;  // spi select pin
+
 /**
  * Application entry point.
  */
-int main(void)
+void setup()
 {
-    /* Start with board specific hardware init. */
-    peripherals_init();
+    Serial.begin(115200);
+    DWMino_begin(PIN_SS, PIN_RST, PIN_IRQ);
+    DWMino_setdefaults();
+}
+/* Loop forever sending and receiving frames periodically. */
+void loop()
+{
+    /* Activate reception immediately. See NOTE 4 below. */
+    dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
-    /* Display application name on LCD. */
-    lcd_display_str(APP_NAME);
+    /* Poll until a frame is properly received or an error occurs. See NOTE 5 below.
+         * STATUS register is 5 bytes long but, as the events we are looking at are in the lower bytes of the register, we can use this simplest API
+         * function to access it. */
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR)))
+    {
+    };
 
-    /* Reset and initialise DW1000. See NOTE 2 below.
-     * For initialisation, DW1000 clocks must be temporarily set to crystal speed. After initialisation SPI rate can be increased for optimum
-     * performance. */
-    reset_DW1000(); /* Target specific drive of RSTn line into DW1000 low for a period. */
+    if (status_reg & SYS_STATUS_RXFCG)
+    {
+        /* A frame has been received, read it into the local buffer. */
+        frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
+        if (frame_len <= FRAME_LEN_MAX)
+        {
+            dwt_readrxdata(rx_buffer, frame_len, 0);
+        }
+
+        /* TESTING BREAKPOINT LOCATION #1 */
+
+        /* Clear good RX frame event in the DW1000 status register. */
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG);
+
+        /* Validate the frame is the one expected as sent by "TX then wait for a response" example. */
+        if ((frame_len == 14) && (rx_buffer[0] == 0xC5) && (rx_buffer[10] == 0x43) && (rx_buffer[11] == 0x2))
+        {
+            int i;
+
+            // Printing to serial.
+            Serial.println("Valid frame received.")
+
+                /* Copy source address of blink in response destination address. */
+                for (i = 0; i < 8; i++)
+            {
+                tx_msg[DATA_FRAME_DEST_IDX + i] = rx_buffer[BLINK_FRAME_SRC_IDX + i];
+            }
+
+            /* Write response frame data to DW1000 and prepare transmission. See NOTE 6 below.*/
+            dwt_writetxdata(sizeof(tx_msg), tx_msg, 0); /* Zero offset in TX buffer. */
+            dwt_writetxfctrl(sizeof(tx_msg), 0, 0);     /* Zero offset in TX buffer, no ranging. */
+
+            /* Send the response. */
+            dwt_starttx(DWT_START_TX_IMMEDIATE);
+
+            /* Poll DW1000 until TX frame sent event set. */
+            while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
+            {
+            };
+
+            /* Clear TX frame sent event. */
+            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
+
+            /* Increment the data frame sequence number (modulo 256). */
+            tx_msg[DATA_FRAME_SN_IDX]++;
+        }
+    }
+    else
+    {
+        /* Clear RX error events in the DW1000 status register. */
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_ERR);
+    }
+}
+
+/* DWMino */
+
+void DWMino_begin(uint8_t SS_PIN, uint8_t RST_PIN, uint8_t IRQ_PIN)
+{
+    /* Start with board specific SPI init. */
+    selectspi(SS_PIN, RST_PIN);
+    openspi(IRQ_PIN);
+
+    /* SPI rate must be < 3Mhz when initalized. See note 1 */
+    reset_DW1000();
     spi_set_rate_low();
     if (dwt_initialise(DWT_LOADNONE) == DWT_ERROR)
     {
-        lcd_display_str("INIT FAILED");
+        Serial.println("INIT FAILED");
         while (1)
         {
         };
     }
     spi_set_rate_high();
-
-    /* Configure DW1000. See NOTE 3 below. */
-    dwt_configure(&config);
-
-    /* Loop forever sending and receiving frames periodically. */
-    while (1)
-    {
-        /* Activate reception immediately. See NOTE 4 below. */
-        dwt_rxenable(DWT_START_RX_IMMEDIATE);
-
-        /* Poll until a frame is properly received or an error occurs. See NOTE 5 below.
-         * STATUS register is 5 bytes long but, as the events we are looking at are in the lower bytes of the register, we can use this simplest API
-         * function to access it. */
-        while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR)))
-        {
-        };
-
-        if (status_reg & SYS_STATUS_RXFCG)
-        {
-            /* A frame has been received, read it into the local buffer. */
-            frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
-            if (frame_len <= FRAME_LEN_MAX)
-            {
-                dwt_readrxdata(rx_buffer, frame_len, 0);
-            }
-
-            /* TESTING BREAKPOINT LOCATION #1 */
-
-            /* Clear good RX frame event in the DW1000 status register. */
-            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG);
-
-            /* Validate the frame is the one expected as sent by "TX then wait for a response" example. */
-            if ((frame_len == 14) && (rx_buffer[0] == 0xC5) && (rx_buffer[10] == 0x43) && (rx_buffer[11] == 0x2))
-            {
-                int i;
-
-                /* Copy source address of blink in response destination address. */
-                for (i = 0; i < 8; i++)
-                {
-                    tx_msg[DATA_FRAME_DEST_IDX + i] = rx_buffer[BLINK_FRAME_SRC_IDX + i];
-                }
-
-                /* Write response frame data to DW1000 and prepare transmission. See NOTE 6 below.*/
-                dwt_writetxdata(sizeof(tx_msg), tx_msg, 0); /* Zero offset in TX buffer. */
-                dwt_writetxfctrl(sizeof(tx_msg), 0, 0);     /* Zero offset in TX buffer, no ranging. */
-
-                /* Send the response. */
-                dwt_starttx(DWT_START_TX_IMMEDIATE);
-
-                /* Poll DW1000 until TX frame sent event set. */
-                while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
-                {
-                };
-
-                /* Clear TX frame sent event. */
-                dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
-
-                /* Increment the data frame sequence number (modulo 256). */
-                tx_msg[DATA_FRAME_SN_IDX]++;
-            }
-        }
-        else
-        {
-            /* Clear RX error events in the DW1000 status register. */
-            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_ERR);
-        }
-    }
 }
 
-/*****************************************************************************************************************************************************
+void DWMino_setdefaults()
+{
+    /* Default communication configuration. We use here EVK1000's default mode (mode 3). */
+    static dwt_config_t config = {
+        2,               /* Channel number. */
+        DWT_PRF_64M,     /* Pulse repetition frequency. */
+        DWT_PLEN_1024,   /* Preamble length. Used in TX only. */
+        DWT_PAC32,       /* Preamble acquisition chunk size. Used in RX only. */
+        9,               /* TX preamble code. Used in TX only. */
+        9,               /* RX preamble code. Used in RX only. */
+        1,               /* 0 to use standard SFD, 1 to use non-standard SFD. */
+        DWT_BR_110K,     /* Data rate. */
+        DWT_PHRMODE_STD, /* PHY header mode. */
+        (1025 + 64 - 32) /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+    };
+
+    dwt_configure(&config);
+
+    /*****************************************************************************************************************************************************
  * NOTES:
  *
  * 1. In this example, maximum frame length is set to 127 bytes which is 802.15.4 UWB standard maximum frame length. DW1000 supports an extended frame

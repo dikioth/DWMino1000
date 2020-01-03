@@ -114,7 +114,7 @@ int main(void)
          * prevent the DW1000 from sleeping. */
 
         /* Execute a delay between transmissions. See NOTE 7 below. */
-        sleep_ms(TX_DELAY_MS);
+        delay(TX_DELAY_MS);
 
         /* In this example, there is nothing to do to wake the DW1000 up as it is handled by the sleep timer. */
 

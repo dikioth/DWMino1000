@@ -133,6 +133,7 @@ int main(void)
             if (frame_len <= FRAME_LEN_MAX)
             {
                 dwt_readrxdata(rx_buffer, frame_len, 0);
+                Serial.println(rx_buffer);
             }
 
             /* TESTING BREAKPOINT LOCATION #1 */
@@ -150,7 +151,7 @@ int main(void)
         }
 
         /* Execute a delay between transmissions. */
-        sleep_ms(TX_DELAY_MS);
+        delay(TX_DELAY_MS);
 
         /* Increment the blink frame sequence number (modulo 256). */
         tx_msg[BLINK_FRAME_SN_IDX]++;

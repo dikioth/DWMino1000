@@ -157,7 +157,7 @@ int main(void)
         if (tx_frame_acked)
         {
             /* Execute a delay between transmissions. See NOTE 1 below. */
-            sleep_ms(TX_DELAY_MS);
+            delay(TX_DELAY_MS);
 
             /* Increment the sent frame sequence number (modulo 256). */
             tx_msg[FRAME_SN_IDX]++;

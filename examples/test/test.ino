@@ -1,22 +1,8 @@
 
-#include "decadriver\deca_device_api.h"
-#include "decadriver\deca_regs.h"
-#include "decadriver\deca_spi.h"
+#include "deca_device_api.h"
+#include "deca_regs.h"
+#include "deca_spi.h"
 #include <SPI.h>
-
-/* Default communication configuration. We use here EVK1000's default mode (mode 3). */
-static dwt_config_t config = {
-    2,               /* Channel number. */
-    DWT_PRF_64M,     /* Pulse repetition frequency. */
-    DWT_PLEN_1024,   /* Preamble length. Used in TX only. */
-    DWT_PAC32,       /* Preamble acquisition chunk size. Used in RX only. */
-    9,               /* TX preamble code. Used in TX only. */
-    9,               /* RX preamble code. Used in RX only. */
-    1,               /* 0 to use standard SFD, 1 to use non-standard SFD. */
-    DWT_BR_110K,     /* Data rate. */
-    DWT_PHRMODE_STD, /* PHY header mode. */
-    (1025 + 64 - 32) /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
-};
 
 /* SPI PINS */
 constexpr uint8_t PIN_RST = 8; // reset pin
@@ -37,14 +23,9 @@ static void tx_conf_cb(const dwt_cb_data_t *cb_data);
  *     - byte 11: EXT header (0x02 to indicate tag is listening for a response immediately after this message).
  *     - byte 12/13: frame check-sum, automatically set by DW1000. */
 static uint8 tx_msg[] = {0xC5, 0, 'D', 'E', 'C', 'A', 'W', 'A', 'V', 'E', 0x43, 0x02, 0, 0};
-/* Index to access the sequence number of the blink frame in the tx_msg array. */
-#define BLINK_FRAME_SN_IDX 1
-
-/* Delay from end of transmission to activation of reception, expressed in UWB microseconds (1 uus is 512/499.2 microseconds). See NOTE 2 below. */
-#define TX_TO_RX_DELAY_UUS 60
-
-/* Receive response timeout, expressed in UWB microseconds. See NOTE 3 below. */
-#define RX_RESP_TO_UUS 5000
+#define BLINK_FRAME_SN_IDX 1  /* Index to access the sequence number of the blink frame in the tx_msg array. */
+#define TX_TO_RX_DELAY_UUS 60 /* Delay from end of transmission to activation of reception, expressed in UWB microseconds (1 uus is 512/499.2 microseconds). See NOTE 2 below. */
+#define RX_RESP_TO_UUS 5000   /* Receive response timeout, expressed in UWB microseconds. See NOTE 3 below. */
 
 /* Default inter-frame delay period, in milliseconds. */
 #define DFLT_TX_DELAY_MS 1000
@@ -62,25 +43,8 @@ static int32 tx_delay_ms = -1;
 void setup()
 {
     Serial.begin(115200);
-
-    /* Start with board specific SPI init. */
-    selectspi(PIN_SS, PIN_RST);
-    openspi(PIN_IRQ);
-
-    /* SPI rate must be < 3Mhz when initalized. See note 1 */
-    reset_DW1000();
-    spi_set_rate_low();
-    if (dwt_initialise(DWT_LOADNONE) == DWT_ERROR)
-    {
-        Serial.println("INIT FAILED");
-        while (1)
-        {
-        };
-    }
-    spi_set_rate_high();
-
-    // /* Configure DW1000. See NOTE 3 below. */
-    dwt_configure(&config);
+    DWMino_begin(PIN_SS, PIN_RST, PIN_IRQ);
+    DWMino_setdefaults();
 
     /* Register RX call-back. */
     dwt_setcallbacks(&tx_conf_cb, &rx_ok_cb, &rx_to_cb, &rx_err_cb);
@@ -215,6 +179,47 @@ static void tx_conf_cb(const dwt_cb_data_t *cb_data)
      * dwt_setcallbacks(). The ISR will not call it which will allow to save some interrupt processing time. */
 
     /* TESTING BREAKPOINT LOCATION #4 */
+}
+
+/* DWMino */
+
+void DWMino_begin(uint8_t SS_PIN, uint8_t RST_PIN, uint8_t IRQ_PIN)
+{
+    /* Start with board specific SPI init. */
+    selectspi(SS_PIN, RST_PIN);
+    openspi(IRQ_PIN);
+
+    /* SPI rate must be < 3Mhz when initalized. See note 1 */
+    reset_DW1000();
+    spi_set_rate_low();
+    if (dwt_initialise(DWT_LOADNONE) == DWT_ERROR)
+    {
+        Serial.println("INIT FAILED");
+        while (1)
+        {
+        };
+    }
+    spi_set_rate_high();
+}
+
+void DWMino_setdefaults()
+{
+    /* Default communication configuration. We use here EVK1000's default mode (mode 3). */
+    static dwt_config_t config = {
+        2,               /* Channel number. */
+        DWT_PRF_64M,     /* Pulse repetition frequency. */
+        DWT_PLEN_1024,   /* Preamble length. Used in TX only. */
+        DWT_PAC32,       /* Preamble acquisition chunk size. Used in RX only. */
+        9,               /* TX preamble code. Used in TX only. */
+        9,               /* RX preamble code. Used in RX only. */
+        1,               /* 0 to use standard SFD, 1 to use non-standard SFD. */
+        DWT_BR_110K,     /* Data rate. */
+        DWT_PHRMODE_STD, /* PHY header mode. */
+        (1025 + 64 - 32) /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+    };
+
+    /* Configure DW1000. See NOTE 3 below. */
+    dwt_configure(&config);
 }
 
 /********************************************************************************

@@ -22,23 +22,16 @@
 
 #include "deca_device_api.h"
 #include "deca_regs.h"
+#include "deca_spi.h"
+#include <SPI.h>
+
+/* SPI PINS */
+constexpr uint8_t PIN_RST = 8; // reset pin
+constexpr uint8_t PIN_IRQ = 2; // irq pin
+constexpr uint8_t PIN_SS = 7;  // spi select pin
 
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "DS TWR RESP v1.2"
-
-/* Default communication configuration. We use here EVK1000's default mode (mode 3). */
-static dwt_config_t config = {
-    2,               /* Channel number. */
-    DWT_PRF_64M,     /* Pulse repetition frequency. */
-    DWT_PLEN_1024,   /* Preamble length. Used in TX only. */
-    DWT_PAC32,       /* Preamble acquisition chunk size. Used in RX only. */
-    9,               /* TX preamble code. Used in TX only. */
-    9,               /* RX preamble code. Used in RX only. */
-    1,               /* 0 to use standard SFD, 1 to use non-standard SFD. */
-    DWT_BR_110K,     /* Data rate. */
-    DWT_PHRMODE_STD, /* PHY header mode. */
-    (1025 + 64 - 32) /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
-};
 
 /* Default antenna delay values for 64 MHz PRF. See NOTE 1 below. */
 #define TX_ANT_DLY 16436
@@ -100,44 +93,13 @@ static double distance;
 /* String used to display measured distance on LCD screen (16 characters maximum). */
 char dist_str[16] = {0};
 
-/* Declaration of static functions. */
-static uint64 get_tx_timestamp_u64(void);
-static uint64 get_rx_timestamp_u64(void);
-static void final_msg_get_ts(const uint8 *ts_field, uint32 *ts);
-
-/*! ------------------------------------------------------------------------------------------------------------------
- * @fn main()
- *
- * @brief Application entry point.
- *
- * @param  none
- *
- * @return none
- */
-int main(void)
+void setup()
 {
-    /* Start with board specific hardware init. */
-    peripherals_init();
+    Serial.begin(115200);
 
-    /* Display application name on LCD. */
-    lcd_display_str(APP_NAME);
-
-    /* Reset and initialise DW1000.
-     * For initialisation, DW1000 clocks must be temporarily set to crystal speed. After initialisation SPI rate can be increased for optimum
-     * performance. */
-    reset_DW1000(); /* Target specific drive of RSTn line into DW1000 low for a period. */
-    spi_set_rate_low();
-    if (dwt_initialise(DWT_LOADUCODE) == DWT_ERROR)
-    {
-        lcd_display_str("INIT FAILED");
-        while (1)
-        {
-        };
-    }
-    spi_set_rate_high();
-
-    /* Configure DW1000. See NOTE 7 below. */
-    dwt_configure(&config);
+    /* Start with board specific SPI init. */
+    DWMino_begin(PIN_SS, PIN_RST, PIN_IRQ);
+    DWMino_setdefaults();
 
     /* Apply default antenna delay value. See NOTE 1 below. */
     dwt_setrxantennadelay(RX_ANT_DLY);
@@ -145,141 +107,141 @@ int main(void)
 
     /* Set preamble timeout for expected frames. See NOTE 6 below. */
     dwt_setpreambledetecttimeout(PRE_TIMEOUT);
+}
 
-    /* Loop forever responding to ranging requests. */
-    while (1)
+/* Loop forever responding to ranging requests. */
+void loop()
+{
+    /* Clear reception timeout to start next ranging process. */
+    dwt_setrxtimeout(0);
+
+    /* Activate reception immediately. */
+    dwt_rxenable(DWT_START_RX_IMMEDIATE);
+
+    /* Poll for reception of a frame or error/timeout. See NOTE 8 below. */
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
     {
-        /* Clear reception timeout to start next ranging process. */
-        dwt_setrxtimeout(0);
+    };
 
-        /* Activate reception immediately. */
-        dwt_rxenable(DWT_START_RX_IMMEDIATE);
+    if (status_reg & SYS_STATUS_RXFCG)
+    {
+        uint32 frame_len;
 
-        /* Poll for reception of a frame or error/timeout. See NOTE 8 below. */
-        while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
+        /* Clear good RX frame event in the DW1000 status register. */
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG);
+
+        /* A frame has been received, read it into the local buffer. */
+        frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
+        if (frame_len <= RX_BUFFER_LEN)
         {
-        };
+            dwt_readrxdata(rx_buffer, frame_len, 0);
+        }
 
-        if (status_reg & SYS_STATUS_RXFCG)
-        {
-            uint32 frame_len;
-
-            /* Clear good RX frame event in the DW1000 status register. */
-            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG);
-
-            /* A frame has been received, read it into the local buffer. */
-            frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
-            if (frame_len <= RX_BUFFER_LEN)
-            {
-                dwt_readrxdata(rx_buffer, frame_len, 0);
-            }
-
-            /* Check that the frame is a poll sent by "DS TWR initiator" example.
+        /* Check that the frame is a poll sent by "DS TWR initiator" example.
              * As the sequence number field of the frame is not relevant, it is cleared to simplify the validation of the frame. */
-            rx_buffer[ALL_MSG_SN_IDX] = 0;
-            if (memcmp(rx_buffer, rx_poll_msg, ALL_MSG_COMMON_LEN) == 0)
+        rx_buffer[ALL_MSG_SN_IDX] = 0;
+        if (memcmp(rx_buffer, rx_poll_msg, ALL_MSG_COMMON_LEN) == 0)
+        {
+            uint32 resp_tx_time;
+            int ret;
+
+            /* Retrieve poll reception timestamp. */
+            poll_rx_ts = get_rx_timestamp_u64();
+
+            /* Set send time for response. See NOTE 9 below. */
+            resp_tx_time = (poll_rx_ts + (POLL_RX_TO_RESP_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
+            dwt_setdelayedtrxtime(resp_tx_time);
+
+            /* Set expected delay and timeout for final message reception. See NOTE 4 and 5 below. */
+            dwt_setrxaftertxdelay(RESP_TX_TO_FINAL_RX_DLY_UUS);
+            dwt_setrxtimeout(FINAL_RX_TIMEOUT_UUS);
+
+            /* Write and send the response message. See NOTE 10 below.*/
+            tx_resp_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
+            dwt_writetxdata(sizeof(tx_resp_msg), tx_resp_msg, 0); /* Zero offset in TX buffer. */
+            dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
+            ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
+
+            /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 11 below. */
+            if (ret == DWT_ERROR)
             {
-                uint32 resp_tx_time;
-                int ret;
+                Serial.println("DWT ERRROR");
+            }
 
-                /* Retrieve poll reception timestamp. */
-                poll_rx_ts = get_rx_timestamp_u64();
+            /* Poll for reception of expected "final" frame or error/timeout. See NOTE 8 below. */
+            while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
+            {
+            };
 
-                /* Set send time for response. See NOTE 9 below. */
-                resp_tx_time = (poll_rx_ts + (POLL_RX_TO_RESP_TX_DLY_UUS * UUS_TO_DWT_TIME)) >> 8;
-                dwt_setdelayedtrxtime(resp_tx_time);
+            /* Increment frame sequence number after transmission of the response message (modulo 256). */
+            frame_seq_nb++;
 
-                /* Set expected delay and timeout for final message reception. See NOTE 4 and 5 below. */
-                dwt_setrxaftertxdelay(RESP_TX_TO_FINAL_RX_DLY_UUS);
-                dwt_setrxtimeout(FINAL_RX_TIMEOUT_UUS);
+            if (status_reg & SYS_STATUS_RXFCG)
+            {
+                /* Clear good RX frame event and TX frame sent in the DW1000 status register. */
+                dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG | SYS_STATUS_TXFRS);
 
-                /* Write and send the response message. See NOTE 10 below.*/
-                tx_resp_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-                dwt_writetxdata(sizeof(tx_resp_msg), tx_resp_msg, 0); /* Zero offset in TX buffer. */
-                dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
-                ret = dwt_starttx(DWT_START_TX_DELAYED | DWT_RESPONSE_EXPECTED);
-
-                /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 11 below. */
-                if (ret == DWT_ERROR)
+                /* A frame has been received, read it into the local buffer. */
+                frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
+                if (frame_len <= RX_BUF_LEN)
                 {
-                    continue;
+                    dwt_readrxdata(rx_buffer, frame_len, 0);
                 }
 
-                /* Poll for reception of expected "final" frame or error/timeout. See NOTE 8 below. */
-                while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-                {
-                };
-
-                /* Increment frame sequence number after transmission of the response message (modulo 256). */
-                frame_seq_nb++;
-
-                if (status_reg & SYS_STATUS_RXFCG)
-                {
-                    /* Clear good RX frame event and TX frame sent in the DW1000 status register. */
-                    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG | SYS_STATUS_TXFRS);
-
-                    /* A frame has been received, read it into the local buffer. */
-                    frame_len = dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFLEN_MASK;
-                    if (frame_len <= RX_BUF_LEN)
-                    {
-                        dwt_readrxdata(rx_buffer, frame_len, 0);
-                    }
-
-                    /* Check that the frame is a final message sent by "DS TWR initiator" example.
+                /* Check that the frame is a final message sent by "DS TWR initiator" example.
                      * As the sequence number field of the frame is not used in this example, it can be zeroed to ease the validation of the frame. */
-                    rx_buffer[ALL_MSG_SN_IDX] = 0;
-                    if (memcmp(rx_buffer, rx_final_msg, ALL_MSG_COMMON_LEN) == 0)
-                    {
-                        uint32 poll_tx_ts, resp_rx_ts, final_tx_ts;
-                        uint32 poll_rx_ts_32, resp_tx_ts_32, final_rx_ts_32;
-                        double Ra, Rb, Da, Db;
-                        int64 tof_dtu;
-
-                        /* Retrieve response transmission and final reception timestamps. */
-                        resp_tx_ts = get_tx_timestamp_u64();
-                        final_rx_ts = get_rx_timestamp_u64();
-
-                        /* Get timestamps embedded in the final message. */
-                        final_msg_get_ts(&rx_buffer[FINAL_MSG_POLL_TX_TS_IDX], &poll_tx_ts);
-                        final_msg_get_ts(&rx_buffer[FINAL_MSG_RESP_RX_TS_IDX], &resp_rx_ts);
-                        final_msg_get_ts(&rx_buffer[FINAL_MSG_FINAL_TX_TS_IDX], &final_tx_ts);
-
-                        /* Compute time of flight. 32-bit subtractions give correct answers even if clock has wrapped. See NOTE 12 below. */
-                        poll_rx_ts_32 = (uint32)poll_rx_ts;
-                        resp_tx_ts_32 = (uint32)resp_tx_ts;
-                        final_rx_ts_32 = (uint32)final_rx_ts;
-                        Ra = (double)(resp_rx_ts - poll_tx_ts);
-                        Rb = (double)(final_rx_ts_32 - resp_tx_ts_32);
-                        Da = (double)(final_tx_ts - resp_rx_ts);
-                        Db = (double)(resp_tx_ts_32 - poll_rx_ts_32);
-                        tof_dtu = (int64)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
-
-                        tof = tof_dtu * DWT_TIME_UNITS;
-                        distance = tof * SPEED_OF_LIGHT;
-
-                        /* Display computed distance on LCD. */
-                        sprintf(dist_str, "DIST: %3.2f m", distance);
-                        lcd_display_str(dist_str);
-                    }
-                }
-                else
+                rx_buffer[ALL_MSG_SN_IDX] = 0;
+                if (memcmp(rx_buffer, rx_final_msg, ALL_MSG_COMMON_LEN) == 0)
                 {
-                    /* Clear RX error/timeout events in the DW1000 status register. */
-                    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+                    uint32 poll_tx_ts, resp_rx_ts, final_tx_ts;
+                    uint32 poll_rx_ts_32, resp_tx_ts_32, final_rx_ts_32;
+                    double Ra, Rb, Da, Db;
+                    int64 tof_dtu;
 
-                    /* Reset RX to properly reinitialise LDE operation. */
-                    dwt_rxreset();
+                    /* Retrieve response transmission and final reception timestamps. */
+                    resp_tx_ts = get_tx_timestamp_u64();
+                    final_rx_ts = get_rx_timestamp_u64();
+
+                    /* Get timestamps embedded in the final message. */
+                    final_msg_get_ts(&rx_buffer[FINAL_MSG_POLL_TX_TS_IDX], &poll_tx_ts);
+                    final_msg_get_ts(&rx_buffer[FINAL_MSG_RESP_RX_TS_IDX], &resp_rx_ts);
+                    final_msg_get_ts(&rx_buffer[FINAL_MSG_FINAL_TX_TS_IDX], &final_tx_ts);
+
+                    /* Compute time of flight. 32-bit subtractions give correct answers even if clock has wrapped. See NOTE 12 below. */
+                    poll_rx_ts_32 = (uint32)poll_rx_ts;
+                    resp_tx_ts_32 = (uint32)resp_tx_ts;
+                    final_rx_ts_32 = (uint32)final_rx_ts;
+                    Ra = (double)(resp_rx_ts - poll_tx_ts);
+                    Rb = (double)(final_rx_ts_32 - resp_tx_ts_32);
+                    Da = (double)(final_tx_ts - resp_rx_ts);
+                    Db = (double)(resp_tx_ts_32 - poll_rx_ts_32);
+                    tof_dtu = (int64)((Ra * Rb - Da * Db) / (Ra + Rb + Da + Db));
+
+                    tof = tof_dtu * DWT_TIME_UNITS;
+                    distance = tof * SPEED_OF_LIGHT;
+
+                    /* Display computed distance on LCD. */
+                    sprintf(dist_str, "DIST: %3.2f m", distance);
+                    Serial.println(dist_str);
                 }
             }
-        }
-        else
-        {
-            /* Clear RX error/timeout events in the DW1000 status register. */
-            dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+            else
+            {
+                /* Clear RX error/timeout events in the DW1000 status register. */
+                dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
 
-            /* Reset RX to properly reinitialise LDE operation. */
-            dwt_rxreset();
+                /* Reset RX to properly reinitialise LDE operation. */
+                dwt_rxreset();
+            }
         }
+    }
+    else
+    {
+        /* Clear RX error/timeout events in the DW1000 status register. */
+        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+
+        /* Reset RX to properly reinitialise LDE operation. */
+        dwt_rxreset();
     }
 }
 
@@ -419,3 +381,43 @@ static void final_msg_get_ts(const uint8 *ts_field, uint32 *ts)
  * 13. The user is referred to DecaRanging ARM application (distributed with EVK1000 product) for additional practical example of usage, and to the
  *     DW1000 API Guide for more details on the DW1000 driver functions.
  ****************************************************************************************************************************************************/
+
+void DWMino_setdefaults()
+{
+    /* Default communication configuration. We use here EVK1000's default mode (mode 3). */
+    static dwt_config_t config = {
+        2,               /* Channel number. */
+        DWT_PRF_64M,     /* Pulse repetition frequency. */
+        DWT_PLEN_1024,   /* Preamble length. Used in TX only. */
+        DWT_PAC32,       /* Preamble acquisition chunk size. Used in RX only. */
+        9,               /* TX preamble code. Used in TX only. */
+        9,               /* RX preamble code. Used in RX only. */
+        1,               /* 0 to use standard SFD, 1 to use non-standard SFD. */
+        DWT_BR_110K,     /* Data rate. */
+        DWT_PHRMODE_STD, /* PHY header mode. */
+        (1025 + 64 - 32) /* SFD timeout (preamble length + 1 + SFD length - PAC size). Used in RX only. */
+    };
+
+    /* Configure DW1000. See NOTE 3 below. */
+    dwt_configure(&config);
+}
+
+/* DWMino */
+void DWMino_begin(uint8_t SS_PIN, uint8_t RST_PIN, uint8_t IRQ_PIN)
+{
+    /* Start with board specific SPI init. */
+    selectspi(SS_PIN, RST_PIN);
+    openspi(IRQ_PIN);
+
+    /* SPI rate must be < 3Mhz when initalized. See note 1 */
+    reset_DW1000();
+    spi_set_rate_low();
+    if (dwt_initialise(DWT_READ_OTP_PID | DWT_READ_OTP_LID) == DWT_ERROR)
+    {
+        Serial.println("INIT FAILED");
+        while (1)
+        {
+        };
+    }
+    spi_set_rate_high();
+}

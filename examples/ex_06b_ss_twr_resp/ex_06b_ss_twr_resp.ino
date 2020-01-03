@@ -21,7 +21,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "SS TWR RESP v1.2"
 
@@ -107,7 +106,8 @@ int main(void)
     {
         lcd_display_str("INIT FAILED");
         while (1)
-        { };
+        {
+        };
     }
     spi_set_rate_high();
 
@@ -126,7 +126,8 @@ int main(void)
 
         /* Poll for reception of a frame or error/timeout. See NOTE 6 below. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR)))
-        { };
+        {
+        };
 
         if (status_reg & SYS_STATUS_RXFCG)
         {
@@ -167,7 +168,7 @@ int main(void)
                 /* Write and send the response message. See NOTE 9 below. */
                 tx_resp_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
                 dwt_writetxdata(sizeof(tx_resp_msg), tx_resp_msg, 0); /* Zero offset in TX buffer. */
-                dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+                dwt_writetxfctrl(sizeof(tx_resp_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
                 ret = dwt_starttx(DWT_START_TX_DELAYED);
 
                 /* If dwt_starttx() returns an error, abandon this ranging exchange and proceed to the next one. See NOTE 10 below. */
@@ -175,7 +176,8 @@ int main(void)
                 {
                     /* Poll DW1000 until TX frame sent event set. See NOTE 6 below. */
                     while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
-                    { };
+                    {
+                    };
 
                     /* Clear TXFRS event. */
                     dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
@@ -218,26 +220,6 @@ static uint64 get_rx_timestamp_u64(void)
         ts |= ts_tab[i];
     }
     return ts;
-}
-
-/*! ------------------------------------------------------------------------------------------------------------------
- * @fn final_msg_set_ts()
- *
- * @brief Fill a given timestamp field in the response message with the given value. In the timestamp fields of the
- *        response message, the least significant byte is at the lower address.
- *
- * @param  ts_field  pointer on the first byte of the timestamp field to fill
- *         ts  timestamp value
- *
- * @return none
- */
-static void resp_msg_set_ts(uint8 *ts_field, const uint64 ts)
-{
-    int i;
-    for (i = 0; i < RESP_MSG_TS_LEN; i++)
-    {
-        ts_field[i] = (ts >> (i * 8)) & 0xFF;
-    }
 }
 
 /*****************************************************************************************************************************************************

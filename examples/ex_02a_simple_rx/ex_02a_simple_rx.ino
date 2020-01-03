@@ -101,6 +101,7 @@ int main(void)
             if (frame_len <= FRAME_LEN_MAX)
             {
                 dwt_readrxdata(rx_buffer, frame_len, 0);
+                Serial.println(rx_buffer);
             }
 
             /* Clear good RX frame event in the DW1000 status register. */

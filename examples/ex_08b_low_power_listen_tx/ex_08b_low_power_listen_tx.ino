@@ -164,7 +164,7 @@ int main(void)
         }
 
         /* Execute a delay before sending the next wake-up sequence. */
-        sleep_ms(TX_DELAY_MS);
+        delay(TX_DELAY_MS);
 
         /* Change destination address to a dummy address every second wake-up sequence so that we can exercise the companion "low-power listening"
          * example, through the case where the wake-up is for it, and the case where the wake-up relates to another node. */

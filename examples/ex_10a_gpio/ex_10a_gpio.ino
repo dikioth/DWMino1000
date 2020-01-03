@@ -74,17 +74,17 @@ int main(void)
 
         /* set GPIO6 is high use short Sleep ON period*/
         if(dwt_getgpiovalue(DWT_GxP6))
-            sleep_ms(100);
+            delay(100);
         else
-            sleep_ms(400);
+            delay(400);
 
         dwt_setgpiovalue(DWT_GxM2, 0); /* set GPIO2 low (LED4 will be off)*/
 
         /* set GPIO5 is high use short Sleep OFF period*/
         if(dwt_getgpiovalue(DWT_GxP5))
-            sleep_ms(100);
+            delay(100);
         else
-            sleep_ms(400);
+            delay(400);
 
     }
 

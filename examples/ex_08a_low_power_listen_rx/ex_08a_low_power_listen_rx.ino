@@ -62,11 +62,11 @@ static dwt_config_t config = {
 
 /* RX ON time, expressed in multiples of PAC size.
  * The IC automatically adds 1 PAC so the RX ON time of 2 here gives 3 PAC times and, since the configuration (above) specifies DWT_PAC16, we get an
- * RX ON time of 3*16 symbols, or around 48 µs. See NOTE 2 below. */
+ * RX ON time of 3*16 symbols, or around 48 ï¿½s. See NOTE 2 below. */
 #define LPL_RX_SNIFF_TIME 2
 
-/* Snooze ("short sleep") time, expressed in multiples of 512/19.2 µs (~26.7 µs).
- * The IC automatically adds 1 to the value set so the snooze time of 4 here gives 5*512/19.2 µs (~133 µs). See NOTE 2 below. */
+/* Snooze ("short sleep") time, expressed in multiples of 512/19.2 ï¿½s (~26.7 ï¿½s).
+ * The IC automatically adds 1 to the value set so the snooze time of 4 here gives 5*512/19.2 ï¿½s (~133 ï¿½s). See NOTE 2 below. */
 #define LPL_SHORT_SLEEP_SNOOZE_TIME 4
 
 /* "Long sleep" time, in milliseconds. See NOTE 3 below. */
@@ -210,7 +210,7 @@ int main(void)
             dwt_entersleep();
 
             /* Wait for the end of the wake-up sequence. */
-            sleep_ms(wus_end_time_ms);
+            delay(wus_end_time_ms);
 
             /* Wake DW1000 up. See NOTE 7 below. */
             dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);
@@ -245,7 +245,7 @@ int main(void)
             dwt_entersleep();
 
             /* Wait for the end of the interaction period. */
-            sleep_ms(sleep_time_ms);
+            delay(sleep_time_ms);
 
             /* Wake DW1000 up. See NOTE 7 below. */
             dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);

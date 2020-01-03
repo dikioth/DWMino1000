@@ -35,7 +35,7 @@ void setup()
     /* SPI rate must be < 3Mhz when initalized. See note 1 */
     reset_DW1000();
     spi_set_rate_low();
-    if (dwt_initialise(DWT_LOADNONE) == DWT_ERROR)
+    if (dwt_initialise(DWT_READ_OTP_PID | DWT_READ_OTP_LID) == DWT_ERROR)
     {
         Serial.println("INIT FAILED");
         while (1)
@@ -50,11 +50,43 @@ void setup()
 /* Loop forever sending frames periodically. */
 void loop()
 {
-    Serial.print("Device ID: ");
-    Serial.println(dwt_readdevid(), HEX);
+    uint32 devID = dwt_readdevid();
+    uint32 partID = dwt_getpartid();
+    uint32 lotID = dwt_getlotid();
+
+    uint8 part0 = ((partID >> 24) & 0xFF);
+    uint8 part1 = ((partID >> 16) & 0xFF);
+    uint8 part2 = ((partID >> 8) & 0XFF);
+    uint8 part3 = (partID & 0XFF);
+
+    uint8 lot0 = ((lotID >> 24) & 0xFF);
+    uint8 lot1 = ((lotID >> 16) & 0xFF);
+    uint8 lot2 = ((lotID >> 8) & 0XFF);
+    uint8 lot3 = (lotID & 0XFF);
+
+    Serial.print("PART ID: ");
+    Serial.print(part0, HEX);
+    Serial.print(':');
+    Serial.print(part1, HEX);
+    Serial.print(':');
+    Serial.print(part2, HEX);
+    Serial.print(':');
+    Serial.println(part3, HEX);
+
+    Serial.print(" LOT ID: ");
+    Serial.print(lot0, HEX);
+    Serial.print(':');
+    Serial.print(lot1, HEX);
+    Serial.print(':');
+    Serial.print(lot2, HEX);
+    Serial.print(':');
+    Serial.println(lot3, HEX);
+
     // Serial.print("Part ID: ");
     // Serial.println(dwt_readtempvbat(0));
-    delay(1000);
+    while (1)
+    {
+    };
 }
 
 /********************************************************************************

@@ -18,7 +18,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "ACK DATA RX v1.0"
 
@@ -74,7 +73,8 @@ int main(void)
     {
         lcd_display_str("INIT FAILED");
         while (1)
-        { };
+        {
+        };
     }
     spi_set_rate_high();
 
@@ -101,7 +101,8 @@ int main(void)
         /* Poll until a frame is properly received or an RX error occurs. See NOTE 7 below.
          * STATUS register is 5 bytes long but we are not interested in the high byte here, so we read a more manageable 32-bits with this API call. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR)))
-        { };
+        {
+        };
 
         if (status_reg & SYS_STATUS_RXFCG)
         {
@@ -123,7 +124,8 @@ int main(void)
             {
                 /* Poll DW1000 until confirmation of transmission of the ACK frame. */
                 while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & SYS_STATUS_TXFRS))
-                { };
+                {
+                };
 
                 /* Clear TXFRS event. */
                 dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);

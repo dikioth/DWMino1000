@@ -106,7 +106,7 @@ int main(void)
         dwt_entersleep();
 
         /* Execute a delay between transmissions. */
-        sleep_ms(TX_DELAY_MS);
+        delay(TX_DELAY_MS);
 
         /* Wake DW1000 up. See NOTE 2 below. */
         dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);

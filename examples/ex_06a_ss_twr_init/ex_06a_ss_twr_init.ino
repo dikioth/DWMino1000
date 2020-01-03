@@ -22,7 +22,6 @@
 #include "deca_device_api.h"
 #include "deca_regs.h"
 
-
 /* Example application name and version to display on LCD screen. */
 #define APP_NAME "SS TWR INIT v1.3"
 
@@ -116,7 +115,8 @@ int main(void)
     {
         lcd_display_str("INIT FAILED");
         while (1)
-        { };
+        {
+        };
     }
     spi_set_rate_high();
 
@@ -139,7 +139,7 @@ int main(void)
         tx_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
         dwt_writetxdata(sizeof(tx_poll_msg), tx_poll_msg, 0); /* Zero offset in TX buffer. */
-        dwt_writetxfctrl(sizeof(tx_poll_msg), 0, 1); /* Zero offset in TX buffer, ranging. */
+        dwt_writetxfctrl(sizeof(tx_poll_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
 
         /* Start transmission, indicating that a response is expected so that reception is enabled automatically after the frame is sent and the delay
          * set by dwt_setrxaftertxdelay() has elapsed. */
@@ -147,7 +147,8 @@ int main(void)
 
         /* We assume that the transmission is achieved correctly, poll for reception of a frame or error/timeout. See NOTE 8 below. */
         while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
-        { };
+        {
+        };
 
         /* Increment frame sequence number after transmission of the poll message (modulo 256). */
         frame_seq_nb++;
@@ -173,14 +174,14 @@ int main(void)
             {
                 uint32 poll_tx_ts, resp_rx_ts, poll_rx_ts, resp_tx_ts;
                 int32 rtd_init, rtd_resp;
-                float clockOffsetRatio ;
+                float clockOffsetRatio;
 
                 /* Retrieve poll transmission and response reception timestamps. See NOTE 9 below. */
                 poll_tx_ts = dwt_readtxtimestamplo32();
                 resp_rx_ts = dwt_readrxtimestamplo32();
 
                 /* Read carrier integrator value and calculate clock offset ratio. See NOTE 11 below. */
-                clockOffsetRatio = dwt_readcarrierintegrator() * (FREQ_OFFSET_MULTIPLIER * HERTZ_TO_PPM_MULTIPLIER_CHAN_2 / 1.0e6) ;
+                clockOffsetRatio = dwt_readcarrierintegrator() * (FREQ_OFFSET_MULTIPLIER * HERTZ_TO_PPM_MULTIPLIER_CHAN_2 / 1.0e6);
 
                 /* Get timestamps embedded in response message. */
                 resp_msg_get_ts(&rx_buffer[RESP_MSG_POLL_RX_TS_IDX], &poll_rx_ts);
@@ -208,28 +209,7 @@ int main(void)
         }
 
         /* Execute a delay between ranging exchanges. */
-        sleep_ms(RNG_DELAY_MS);
-    }
-}
-
-/*! ------------------------------------------------------------------------------------------------------------------
- * @fn resp_msg_get_ts()
- *
- * @brief Read a given timestamp value from the response message. In the timestamp fields of the response message, the
- *        least significant byte is at the lower address.
- *
- * @param  ts_field  pointer on the first byte of the timestamp field to get
- *         ts  timestamp value
- *
- * @return none
- */
-static void resp_msg_get_ts(uint8 *ts_field, uint32 *ts)
-{
-    int i;
-    *ts = 0;
-    for (i = 0; i < RESP_MSG_TS_LEN; i++)
-    {
-        *ts += ts_field[i] << (i * 8);
+        delay(RNG_DELAY_MS);
     }
 }
 
