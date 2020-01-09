@@ -195,13 +195,13 @@ void clearDataArr()
 /*** PRINT ***/
 void serialReceiver()
 {
-    int lenserial = Serial.readBytesUntil(0X3E, dataArray, ARRAY_SIZE);
+    int lenserial = Serial.readBytes(dataArray, (127 - 9));
 
     if (dataArray[0] == 'S' && dataArray[1] == 'T')
     {
         if (dataArray[2] == '0')
         {
-            Serial.println("ST0 RANGING");
+            //Serial.println("RANGING");
             // DW1000Ng::softwareReset();
             // DW1000Ng::reset();
             // setupTag();
@@ -210,7 +210,7 @@ void serialReceiver()
         else if (dataArray[2] == '1')
         {
 
-            Serial.println("ST1 MESSENGER");
+            //Serial.println("MESSENGER");
             delay(500);
             //DW1000Ng::disableFrameFiltering();
             //setupMessenger();
@@ -222,7 +222,7 @@ void serialReceiver()
 
     else if (dataArray[0] == 'I' && dataArray[1] == 'D')
     {
-        Serial.println("ID STATE");
+        Serial.println("IDSTATE");
         // Serial.print("DD:EE:CC:AA:00:00:00:11>>>");
     }
 
@@ -343,8 +343,6 @@ void loop()
                 {
                     Serial.print((char)recv_data[i]);
                 }
-
-                Serial.println("");
 
                 for (int i = 0; i < recv_len; i++)
                 {

@@ -186,13 +186,13 @@ void uwbTransmitter(int lenserial)
 void serialReceiver()
 {
 
-    int lenserial = Serial.readBytesUntil(0X3E, dataArray, (127 - 9));
+    int lenserial = Serial.readBytes(dataArray, (127 - 9));
 
     if (dataArray[0] == 'S' && dataArray[1] == 'T')
     {
         if (dataArray[2] == '0')
         {
-            Serial.println("ST0 RANGING");
+            //Serial.println("RANGING");
             // DW1000Ng::softwareReset();
             // DW1000Ng::reset();
             // setupAnchor();
@@ -201,7 +201,7 @@ void serialReceiver()
         }
         else if (dataArray[2] == '1')
         {
-            Serial.println("ST1 MESSENGER");
+            //Serial.println("MESSENGER");
             //DW1000Ng::disableFrameFiltering();
             //DW1000Ng::softwareReset()J;
             //DW1000Ng::reset();
@@ -218,7 +218,7 @@ void serialReceiver()
 
     else if (dataArray[0] == 'I' && dataArray[1] == 'D')
     {
-        Serial.println("ID STATE");
+        Serial.println("IDSTATE");
         // Serial.print("DD:EE:CC:AA:00:00:00:11>>>");
         clearDataArr();
     }
@@ -295,8 +295,6 @@ void loop()
                 Serial.print((char)recv_data[i]);
             }
 
-            Serial.println("");
-
             for (int i = 0; i < recv_len; i++)
             {
                 recv_data[i] = 0;
@@ -365,7 +363,6 @@ void handleAnchorState()
 
             String rangeString = "DS:";
             rangeString += range_self;
-            rangeString += "m>>>";
             Serial.println(rangeString);
 
             transmitRangeReport();
