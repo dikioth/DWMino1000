@@ -9,8 +9,8 @@
 #include <DW1000.h>
 
 // connection pins
-constexpr uint8_t PIN_RST = 8; // reset pin
-constexpr uint8_t PIN_IRQ = 2; // irq pin
+constexpr uint8_t PIN_RST = 9; // reset pin
+constexpr uint8_t PIN_IRQ = 4; // irq pin
 constexpr uint8_t PIN_SS = 7;  // spi select pin
 
 constexpr uint8_t PIN_LED_RED = 3;
@@ -45,7 +45,7 @@ byte flagByte;
 typedef unsigned char uint8;
 
 /* RANGING VARIABLES */
-uint8 pseudoEUI[8];
+byte pseudoEUI[8];
 char pseudoEUIstring[24];
 
 /* TAG VARS */
@@ -173,8 +173,7 @@ void setup()
         DW1000Ng::setSfdDetectionTimeout(273);
         DW1000Ng::setReceiveFrameWaitTimeoutPeriod(2000);
     }
-    DWMino_createEUI();
-    DW1000Ng::setEUI(pseudoEUIstring);
+    DW1000Ng::setEUI("DD:EE:CC:AA:00:00:00:11");
     DW1000Ng::setNetworkId(RTLS_APP_ID);
     DW1000Ng::setAntennaDelay(16436);
 
@@ -362,23 +361,14 @@ void clearDataArr()
 void DWMino_createEUI()
 {
     /* A Pseudo EUI built from partID and LotID */
-    uint8 partID[4];
-    uint8 lotID[4];
-    DW1000.readBytesOTP(0x006, partID);
+    byte lotID[4];
     DW1000.readBytesOTP(0x007, lotID);
-
-    for (int i = 0; i < 3; i++)
-    {
-        pseudoEUI[i] = partID[i];
-    }
-
     for (int i = 4; i < 7; i++)
     {
         pseudoEUI[i] = lotID[i];
     }
 
-    sprintf(pseudoEUIstring, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
-            pseudoEUI[0], pseudoEUI[1], pseudoEUI[2], pseudoEUI[3], pseudoEUI[4], pseudoEUI[5], pseudoEUI[6], pseudoEUI[7], pseudoEUI[8]);
+    sprintf(pseudoEUIstring, "DD:EE:CC:AA:%02X:%02X:%02X:%02X", lotID[5], lotID[6], lotID[7], lotID[8]);
 }
 
 /*** LOOP ***/
@@ -465,13 +455,13 @@ void handleAnchorState()
                 return;
             range_self = result.range;
 
-            // String rangeString = "Range: ";
-            // rangeString += range_self;
-            // rangeString += " m";
-            // rangeString += "\t RX power: ";
-            // rangeString += DW1000Ng::getReceivePower();
-            // rangeString += " dBm";
-            //Serial.println(rangeString);
+            String rangeString = "Range: ";
+            rangeString += range_self;
+            rangeString += " m";
+            rangeString += "\t RX power: ";
+            rangeString += DW1000Ng::getReceivePower();
+            rangeString += " dBm";
+            Serial.println(rangeString);
         }
         else if (recv_data[9] == 0x60)
         {
@@ -515,7 +505,5 @@ void handleTagState()
 
     RangeInfrastructureResult res = DW1000NgRTLS::tagTwrLocalize(1500);
     if (res.success)
-    {
         blink_rate = res.new_blink_rate;
-    }
 }
